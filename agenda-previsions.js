@@ -227,7 +227,7 @@
       if (!date) return null;
       const old = existing.get(item.id);
       const title = item.summary || 'Évènement sans titre';
-      return { ...(old || {}), id: old?.id || `google-${item.id}`, source: 'google', googleEventId: item.id, date, title, amount: old?.amount ?? defaultAmountForTitle(title), amountMode: old?.amountMode || 'rule' };
+      return { ...(old || {}), id: old?.id || `google-${item.id}`, source: 'google', googleEventId: item.id, date, title, amount: old?.amountMode === 'manual' ? old.amount : defaultAmountForTitle(title), amountMode: old?.amountMode || 'rule' };
     }).filter(Boolean);
     const startKey = monthKey(start);
     const endKey = monthKey(end);
