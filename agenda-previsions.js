@@ -2,6 +2,8 @@
   'use strict';
 
   const STORAGE_KEY = 'freelance-os-agenda-previsions-v1';
+  const GOOGLE_CLIENT_ID = '368626541227-mbk5skk95tonks4of8504vl0hfm2jscf.apps.googleusercontent.com';
+  const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
   const money = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
   const uid = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
   const monthKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -11,16 +13,20 @@
     activeMonth: monthKey(),
     forecastGoal: 0,
     rules: [],
-    events: []
+    events: [],
+    google: { status: 'idle', lastSyncedAt: '', error: '' }
   };
 
   let data = load();
   let dashboardListenerTarget = null;
+  let googleScriptPromise = null;
+  let googleTokenClient = null;
+  let googleAccessToken = null;
 
   function load() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return { ...defaults, ...(saved || {}), rules: saved?.rules || defaults.rules, events: saved?.events || [] };
+      return { ...defaults, ...(saved || {}), rules: saved?.rules || defaults.rules, events: saved?.events || [], google: { ...defaults.google, ...(saved?.google || {}) } };
     } catch (_) {
       return { ...defaults, rules: [...defaults.rules], events: [] };
     }
@@ -167,6 +173,90 @@
     return true;
   }
 
+  function googleStatusText() {
+    if (data.google?.status === 'syncing') return 'Connexion et synchronisation en cours…';
+    if (data.google?.error) return data.google.error;
+    if (data.google?.lastSyncedAt) return `Synchronisé le ${new Date(data.google.lastSyncedAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}.`;
+    return 'Connecte ton compte pour importer tes rendez-vous à venir.';
+  }
+
+  function loadGoogleIdentity() {
+    if (window.google?.accounts?.oauth2) return Promise.resolve();
+    if (googleScriptPromise) return googleScriptPromise;
+    googleScriptPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error('Impossible de charger la connexion Google.'));
+      document.head.appendChild(script);
+    });
+    return googleScriptPromise;
+  }
+
+  function defaultAmountForTitle(title) {
+    const normalized = String(title || '').toLocaleLowerCase('fr-FR');
+    const rule = data.rules.find((item) => normalized.includes(String(item.keyword || '').toLocaleLowerCase('fr-FR')));
+    return Number(rule?.amount) || 0;
+  }
+
+  async function syncGoogleCalendar() {
+    if (!googleAccessToken) throw new Error('Autorisation Google manquante.');
+    const start = new Date();
+    start.setDate(1);
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + 15);
+    const query = new URLSearchParams({ timeMin: start.toISOString(), timeMax: end.toISOString(), singleEvents: 'true', orderBy: 'startTime', maxResults: '2500' });
+    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${query}`, { headers: { Authorization: `Bearer ${googleAccessToken}` } });
+    if (!response.ok) throw new Error('Google Agenda n’a pas pu fournir les rendez-vous. Réessaie de te connecter.');
+    const payload = await response.json();
+    const existing = new Map(data.events.filter((item) => item.source === 'google' && item.googleEventId).map((item) => [item.googleEventId, item]));
+    const fetched = (payload.items || []).map((item) => {
+      const date = String(item.start?.date || item.start?.dateTime || '').slice(0, 10);
+      if (!date) return null;
+      const old = existing.get(item.id);
+      const title = item.summary || 'Évènement sans titre';
+      return { ...(old || {}), id: old?.id || `google-${item.id}`, source: 'google', googleEventId: item.id, date, title, amount: old?.amount ?? defaultAmountForTitle(title) };
+    }).filter(Boolean);
+    const startKey = monthKey(start);
+    const endKey = monthKey(end);
+    data.events = [...data.events.filter((item) => item.source !== 'google' || item.date?.slice(0, 7) < startKey || item.date?.slice(0, 7) >= endKey), ...fetched];
+    data.google = { status: 'connected', lastSyncedAt: new Date().toISOString(), error: '' };
+    save();
+  }
+
+  async function connectGoogleCalendar() {
+    if (location.protocol === 'file:') {
+      data.google = { ...data.google, status: 'idle', error: 'Ouvre l’app via le lien GitHub Pages pour connecter Google Agenda.' };
+      save(); render(); return;
+    }
+    data.google = { ...data.google, status: 'syncing', error: '' };
+    save(); render();
+    try {
+      await loadGoogleIdentity();
+      googleTokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: GOOGLE_SCOPE,
+        callback: async (token) => {
+          try {
+            if (token.error) throw new Error('Autorisation Google annulée ou refusée.');
+            googleAccessToken = token.access_token;
+            await syncGoogleCalendar();
+          } catch (error) {
+            data.google = { ...data.google, status: 'idle', error: error.message || 'Synchronisation impossible.' };
+            save();
+          }
+          render();
+        }
+      });
+      googleTokenClient.requestAccessToken({ prompt: googleAccessToken ? '' : 'consent' });
+    } catch (error) {
+      data.google = { ...data.google, status: 'idle', error: error.message || 'Connexion Google impossible.' };
+      save(); render();
+    }
+  }
+
   function render() {
     if (!ensureView()) return;
     const root = document.querySelector('#agenda-forecast');
@@ -209,8 +299,8 @@
           <section class="agenda-card agenda-google">
             <div class="agenda-google-mark">⌘</div>
             <strong>Google Agenda</strong>
-            <p>Non connecté — tes rendez-vous serviront uniquement à alimenter les prévisions.</p>
-            <div class="agenda-settings"><button class="agenda-button" type="button" data-google-connect>Connecter Google Agenda</button></div>
+            <p>${esc(googleStatusText())}</p>
+            <div class="agenda-settings"><button class="agenda-button ghost" type="button" data-google-connect ${data.google?.status === 'syncing' ? 'disabled' : ''}>${data.google?.lastSyncedAt ? 'Actualiser Agenda' : 'Connecter Google Agenda'}</button></div>
           </section>
           <section class="agenda-card" style="margin-top:20px">
             <h3>Règles rapides</h3>
@@ -261,7 +351,7 @@
     modal.querySelector('form').addEventListener('submit', (submitEvent) => {
       submitEvent.preventDefault();
       const form = new FormData(submitEvent.currentTarget);
-      const next = { id: existing?.id || uid(), date: String(form.get('date')), title: String(form.get('title')).trim(), amount: Number(form.get('amount')) || 0 };
+      const next = { ...(existing || {}), id: existing?.id || uid(), date: String(form.get('date')), title: String(form.get('title')).trim(), amount: Number(form.get('amount')) || 0 };
       if (existing) data.events = data.events.map((item) => item.id === existing.id ? next : item);
       else data.events.push(next);
       data.activeMonth = next.date.slice(0, 7);
@@ -278,20 +368,6 @@
     });
     document.querySelectorAll('.sidebar .nav').forEach((item) => item.classList.toggle('active', item.dataset.agendaNav === 'true'));
     render();
-  }
-
-  function openGoogleSetup() {
-    const modal = document.createElement('div');
-    modal.className = 'agenda-modal';
-    modal.innerHTML = `
-      <section class="agenda-modal-box" role="dialog" aria-modal="true" aria-labelledby="google-setup-title">
-        <h3 id="google-setup-title">Connecter Google Agenda</h3>
-        <p class="agenda-note">La synchronisation utilisera une autorisation Google en lecture seule. Tes rendez-vous serviront uniquement à créer des prévisions : ils ne modifieront jamais tes recettes, charges ni tes calculs URSSAF.</p>
-        <p class="agenda-note">La dernière étape consiste à créer l’autorisation sécurisée Google pour ton compte. Elle n’est pas encore configurée dans ce fichier.</p>
-        <div class="agenda-modal-actions"><button class="agenda-button" type="button" data-agenda-close>Compris</button></div>
-      </section>`;
-    document.body.appendChild(modal);
-    modal.querySelector('[data-agenda-close]').addEventListener('click', () => modal.remove());
   }
 
   function bindDashboardPicker() {
@@ -316,7 +392,7 @@
     if (target.dataset.agendaMonth) { data.activeMonth = target.dataset.agendaMonth; save(); render(); }
     if (target.dataset.ruleAdd !== undefined) { data.rules.push({ id: uid(), keyword: '', amount: 0 }); save(); render(); }
     if (target.dataset.ruleDelete) { data.rules = data.rules.filter((rule) => rule.id !== target.dataset.ruleDelete); save(); render(); }
-    if (target.dataset.googleConnect !== undefined) openGoogleSetup();
+    if (target.dataset.googleConnect !== undefined) connectGoogleCalendar();
   });
 
   document.addEventListener('change', (event) => {
