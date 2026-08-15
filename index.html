@@ -1192,4 +1192,24 @@ function simplifyInterfaceStyle(){if(!q('#essential-reading-style'))document.hea
 const essentialReadingRender=render;
 render=function(){essentialReadingRender();simplifyInterfaceCopy();simplifyInterfaceStyle()};
 render();
+</script><script>
+/* Saisie mensuelle : les champs de CA laissés vides signifient 0 €, sans second clic. */
+(function reliableMonthlySave(){
+  const form=q('#month-form');
+  if(!form||form.dataset.reliableSaveBound)return;
+  form.dataset.reliableSaveBound='true';
+  ['m-bnc','m-bic','m-other','m-cdd','m-sacem','m-pocket','m-variable','m-personal','m-invest','m-vat-collected','m-vat-deduct','m-last-year'].forEach(id=>{
+    const input=q('#'+id);if(input)input.required=false;
+  });
+  const amount=id=>{const value=Number(q('#'+id)?.value);return Number.isFinite(value)?value:0};
+  form.addEventListener('submit',event=>{
+    event.preventDefault();event.stopImmediatePropagation();
+    const month=q('#m-month').value;if(!month)return;
+    const data={id:month,month,bnc:amount('m-bnc'),bic:amount('m-bic'),other:0,cdd:amount('m-cdd'),sacem:amount('m-sacem'),pocket:0,variable:amount('m-variable'),personal:amount('m-personal'),invest:amount('m-invest'),vatCollected:state.vatEnabled?amount('m-vat-collected'):0,vatDeduct:state.vatEnabled?amount('m-vat-deduct'):0,lastYear:amount('m-last-year')};
+    const edited=typeof editMonth!=='undefined'&&editMonth;
+    const index=state.months.findIndex(item=>item.id===(edited||month));
+    if(index>=0)state.months[index]=data;else state.months.push(data);
+    save();render();close('#month-modal');
+  },true);
+})();
 </script></body></html>
