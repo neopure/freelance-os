@@ -64,6 +64,18 @@
     return eventsForMonth(key).reduce((total, event) => total + (Number(event.amount) || 0), 0);
   }
 
+  function financeMonthlyGoal() {
+    try { return Number(typeof state !== 'undefined' ? state.monthlyGoal : 0) || 0; } catch (_) { return 0; }
+  }
+
+  function projectedMonthlyAverage(fromMonth) {
+    const totals = availableMonths()
+      .filter((item) => item.key >= fromMonth)
+      .map((item) => totalForMonth(item.key))
+      .filter((total) => total > 0);
+    return totals.length ? totals.reduce((sum, total) => sum + total, 0) / totals.length : 0;
+  }
+
   function ensureStyle() {
     if (document.querySelector('#agenda-forecast-style')) return;
     const style = document.createElement('style');
@@ -80,7 +92,7 @@
       .agenda-card { background:rgba(255,255,255,.86); border:1px solid rgba(91,47,128,.13); border-radius:22px; padding:24px; box-shadow:0 11px 28px rgba(29,22,62,.06); }
       .agenda-card h3 { margin:0; font-size:20px; }
       .agenda-card .agenda-note { margin:7px 0 20px; font-size:14px; color:#777387; }
-      .agenda-kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:21px; }
+      .agenda-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:21px; }
       .agenda-kpi { padding:15px; border-radius:16px; background:#f7f2fb; }
       .agenda-kpi span { display:block; font-size:12px; color:#746e82; margin-bottom:5px; }
       .agenda-kpi strong { font-size:22px; color:#171629; }
@@ -126,7 +138,7 @@
       .agenda-modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
       .agenda-nav { position:relative; }
       .agenda-nav:after { content:'Prévision'; position:absolute; right:14px; font-size:9px; color:#35f2f2; opacity:.85; }
-      @media (max-width:900px) { .agenda-grid { grid-template-columns:1fr; } .agenda-year-list { grid-template-columns:repeat(2,1fr); } .agenda-kpis { grid-template-columns:1fr; } }
+      @media (max-width:900px) { .agenda-grid { grid-template-columns:1fr; } .agenda-year-list { grid-template-columns:repeat(2,1fr); } .agenda-kpis { grid-template-columns:repeat(2,1fr); } }
       @media (max-width:600px) { #agenda-forecast { padding-bottom:95px; } .agenda-hero,.agenda-card { padding:19px; border-radius:18px; } .agenda-hero h2 { font-size:27px; } .agenda-event { grid-template-columns:62px 1fr auto; } .agenda-event .agenda-icon-button { grid-column:3; } .agenda-toolbar,.agenda-rule { flex-direction:column; display:flex; align-items:stretch; } .agenda-year-list { grid-template-columns:1fr 1fr; } .agenda-form-grid { grid-template-columns:1fr; } .agenda-form-grid .wide { grid-column:auto; } }
     `;
     document.head.appendChild(style);
@@ -273,7 +285,9 @@
     const month = data.activeMonth || monthKey();
     const events = eventsForMonth(month);
     const total = totalForMonth(month);
-    const gap = Number(data.forecastGoal) > 0 ? Math.max(0, Number(data.forecastGoal) - total) : 0;
+    const minimumGoal = Number(data.forecastGoal) || financeMonthlyGoal();
+    const gap = minimumGoal > 0 ? Math.max(0, minimumGoal - total) : 0;
+    const average = projectedMonthlyAverage(month);
     const months = availableMonths();
     const monthOptions = months.map((item) => `<option value="${item.key}" ${item.key === month ? 'selected' : ''}>${esc(item.label)}</option>`).join('');
     const list = events.length ? events.map((event) => {
@@ -301,8 +315,10 @@
           <div class="agenda-kpis">
             <div class="agenda-kpi accent"><span>Prévision du mois</span><strong>${money.format(total)}</strong></div>
             <div class="agenda-kpi"><span>Dates prévues</span><strong>${events.length}</strong></div>
-            <div class="agenda-kpi"><span>${Number(data.forecastGoal) > 0 ? 'Reste vers l’objectif' : 'Objectif prévisionnel'}</span><strong>${Number(data.forecastGoal) > 0 ? money.format(gap) : '—'}</strong></div>
+            <div class="agenda-kpi"><span>Moyenne des projections</span><strong>${money.format(average)}</strong></div>
+            <div class="agenda-kpi"><span>Objectif CA minimum</span><strong>${minimumGoal > 0 ? money.format(minimumGoal) : '—'}</strong></div>
           </div>
+          ${minimumGoal > 0 ? `<p class="agenda-note" style="margin:13px 0 2px">${total >= minimumGoal ? 'Objectif minimum atteint pour ce mois.' : `Il reste ${money.format(gap)} pour atteindre ton minimum ce mois-ci.`}</p>` : ''}
           <div class="agenda-event-list">${list}</div>
         </section>
         <aside>
@@ -318,7 +334,7 @@
             <div class="agenda-rule-list">${rules}</div>
             <div class="agenda-settings"><button class="agenda-button ghost" type="button" data-rule-add>+ Ajouter une règle</button></div>
             <div class="agenda-settings">
-              <label class="agenda-field">Objectif de prévision du mois (€)<input id="agenda-goal" type="number" min="0" step="100" value="${Number(data.forecastGoal) || ''}" placeholder="Optionnel"></label>
+              <label class="agenda-field">Objectif CA minimum / mois (€)<input id="agenda-goal" type="number" min="0" step="100" value="${Number(data.forecastGoal) || ''}" placeholder="${financeMonthlyGoal() || 'Optionnel'}"></label>
             </div>
           </section>
         </aside>
