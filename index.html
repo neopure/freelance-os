@@ -660,8 +660,8 @@ function parseBricksRows(sheetRows){
   const headers=rows.shift().map(normalise),index=name=>headers.findIndex(header=>header.includes(name));
   const typeIndex=index('type'),amountIndex=index('montant'),propertyIndex=index('propriet'),dateIndex=index('date'),statusIndex=index('statut');
   if(typeIndex<0||amountIndex<0)throw new Error('Colonnes « type » et « montant (€) » introuvables dans cet export Bricks.');
-  const previous=state.bricks||bricksSeed,investedPeriods=new Set(),investmentByMonth={},incomeByMonth={},projects={};
-  const result={wallet:0,deposits:0,invested:0,repaid:0,income:0,withholding:0,updated:new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}),monthlyInvestment:previous.monthlyInvestment||650,expectedRate:previous.expectedRate||8.5,projects:[]};
+  const previous=state.bricks||bricksSeed,investedPeriods=new Set(),investmentByMonth={},incomeByMonth={},withholdingByMonth={},projects={};
+  const result={wallet:0,deposits:0,invested:0,repaid:0,income:0,withholding:0,updated:new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}),monthlyInvestment:previous.monthlyInvestment||650,expectedRate:previous.expectedRate||8.5,projects:[],importedFromXlsx:true};
   rows.forEach(values=>{
     const status=statusIndex>=0?normalise(values[statusIndex]):'';
     if(status&&!status.includes('validee'))return;
@@ -678,15 +678,18 @@ function parseBricksRows(sheetRows){
       const income=Math.abs(amount);result.income+=income;
       if(month)incomeByMonth[month]=(incomeByMonth[month]||0)+income;
       if(projectName){projects[projectName]??={name:projectName,invested:0,repaid:0,income:0};projects[projectName].income+=income}
-    }else if(type.includes('prelevement a la source'))result.withholding+=Math.abs(amount);
+    }else if(type.includes('prelevement a la source')){const withholding=Math.abs(amount);result.withholding+=withholding;if(month)withholdingByMonth[month]=(withholdingByMonth[month]||0)+withholding}
     else if(type.includes('credit par carte')||type.includes('credit par virement'))result.deposits+=Math.abs(amount);
   });
   const lastInvestmentMonth=Object.keys(investmentByMonth).sort().at(-1)||'',lastIncomeMonth=Object.keys(incomeByMonth).sort().at(-1)||'';
   const period=lastInvestmentMonth||lastIncomeMonth;
   if(lastInvestmentMonth)result.lastInvestment=investmentByMonth[lastInvestmentMonth];
-  if(lastIncomeMonth)result.lastIncome=incomeByMonth[lastIncomeMonth];
+  if(lastIncomeMonth)result.lastIncome=(incomeByMonth[lastIncomeMonth]||0)-(withholdingByMonth[lastIncomeMonth]||0);
   if(period)result.lastPeriod=name(period);
   result.historyMonths=Math.max(1,investedPeriods.size);
+  result.monthlyInvestments=investmentByMonth;
+  result.monthlyIncomes=incomeByMonth;
+  result.monthlyWithholdings=withholdingByMonth;
   result.projects=Object.values(projects).sort((a,b)=>(b.invested-b.repaid)-(a.invested-a.repaid));
   return result;
 }
@@ -813,7 +816,7 @@ render=function(){try{forceProjectionBaseRender()}catch(error){console.warn(erro
 setTimeout(forceSimpleBricksProjection,0);
 </script><script>
 /* La cadence Bricks est une moyenne glissante sur les 12 derniers mois. */
-if(state.bricks&&!state.bricks.averageWindowAligned){state.bricks.historyMonths=12;state.bricks.averageWindowAligned=true;save()}
+if(state.bricks&&!state.bricks.importedFromXlsx&&!state.bricks.averageWindowAligned){state.bricks.historyMonths=12;state.bricks.averageWindowAligned=true;save()}
 function addBricksRateEditor(){
   const open=q('#open-bricks-rate'),fields=q('#bricks-rate-fields'),input=q('#bricks-rate-value'),saveButton=q('#save-bricks-rate');
   if(!open||open.dataset.bound)return;
@@ -827,7 +830,7 @@ render=function(){consistentBricksAverageRender();setTimeout(()=>{forceSimpleBri
 setTimeout(()=>{forceSimpleBricksProjection();addBricksRateEditor();bricksRateEditorStyle()},0);
 </script><script>
 /* Moyenne Bricks = total investi / nombre de mois avec au moins un achat. */
-if(state.bricks&&state.bricks.investmentAverageMode!=='active-months'){
+if(state.bricks&&!state.bricks.importedFromXlsx&&state.bricks.investmentAverageMode!=='active-months'){
   state.bricks.historyMonths=13;
   state.bricks.investmentAverageMode='active-months';
   save();
@@ -1302,5 +1305,38 @@ function finalOverviewCleanup(){
 if(!q('#final-overview-style'))document.head.insertAdjacentHTML('beforeend','<style id="final-overview-style">#fixed-overview .fixed-total-value{display:block!important;visibility:visible!important;opacity:1!important;min-height:64px!important;font-size:68px!important;line-height:.95!important;letter-spacing:-3.4px!important;color:#35f2f2!important;white-space:nowrap!important}#fixed-overview .fixed-summary-total>span{display:block!important;position:static!important;transform:none!important;margin-top:2px!important}@media(max-width:600px){#fixed-overview .fixed-total-value{font-size:48px!important;min-height:48px!important}}</style>');
 const finalOverviewRender=render;
 render=function(){finalOverviewRender();finalOverviewCleanup()};
+render();
+</script><script>
+/* Un import Bricks est la source unique des chiffres du portefeuille. */
+function importedBricksMetrics(){
+  const b=state.bricks,view=q('#investments');
+  if(!b?.importedFromXlsx||!view)return;
+  const activeMonths=Object.keys(b.monthlyInvestments||{}).length;
+  const lastInvestmentMonth=Object.keys(b.monthlyInvestments||{}).sort().at(-1)||'';
+  const lastIncomeMonth=Object.keys(b.monthlyIncomes||{}).sort().at(-1)||'';
+  const capital=Math.max(0,(Number(b.invested)||0)-(Number(b.repaid)||0));
+  const average=(Number(b.invested)||0)/Math.max(1,activeMonths);
+  const latestMonth=lastInvestmentMonth||lastIncomeMonth;
+  b.historyMonths=Math.max(1,activeMonths);
+  b.lastInvestment=Number(b.monthlyInvestments?.[lastInvestmentMonth])||0;
+  b.lastIncome=(Number(b.monthlyIncomes?.[lastIncomeMonth])||0)-(Number(b.monthlyWithholdings?.[lastIncomeMonth])||0);
+  b.lastPeriod=latestMonth?name(latestMonth):'Export importé';
+  delete b.currentCapital;delete b.currentBricks;delete b.activeProjectCount;delete b.history;
+  const heroStat=view.querySelector('.bricks-hero-stat');
+  if(heroStat)heroStat.innerHTML=`<small>Capital en cours</small><b>${money(capital)}</b><em>${b.projects.filter(project=>project.invested-project.repaid>0).length} projets actifs</em>`;
+  const cards=[...view.querySelectorAll('.bricks-cards article')];
+  const values=[
+    ['Investi ce mois',b.lastInvestment,`Dernière période · ${b.lastPeriod}`],
+    ['Moyenne investie / mois',average,`Sur ${b.historyMonths} mois avec investissement`],
+    ['Intérêts nets ce mois',b.lastIncome,'Revenus Bricks du dernier mois'],
+    ['Capital remboursé',b.repaid,'Depuis le début']
+  ];
+  cards.slice(0,4).forEach((card,index)=>{const [label,value,note]=values[index];card.querySelector('small').textContent=label;card.querySelector('b').textContent=money(value);card.querySelector('em').textContent=note});
+  if(q('#simple-proj-average'))paintSimpleBricksProjection();
+  if(q('#bricks-widget-average'))updateBricksProjectionWidget();
+  save();
+}
+const importedBricksRender=render;
+render=function(){importedBricksRender();importedBricksMetrics()};
 render();
 </script></body></html>
