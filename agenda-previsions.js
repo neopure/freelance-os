@@ -197,8 +197,18 @@
 
   function defaultAmountForTitle(title) {
     const normalized = String(title || '').toLocaleLowerCase('fr-FR');
-    const rule = data.rules.find((item) => normalized.includes(String(item.keyword || '').toLocaleLowerCase('fr-FR')));
+    const rule = data.rules.find((item) => {
+      const keyword = String(item.keyword || '').trim().toLocaleLowerCase('fr-FR');
+      return keyword && normalized.includes(keyword);
+    });
     return Number(rule?.amount) || 0;
+  }
+
+  function applyRulesToImportedEvents() {
+    data.events = data.events.map((item) => {
+      if (item.source !== 'google' || item.amountMode === 'manual') return item;
+      return { ...item, amount: defaultAmountForTitle(item.title), amountMode: 'rule' };
+    });
   }
 
   async function syncGoogleCalendar() {
@@ -217,7 +227,7 @@
       if (!date) return null;
       const old = existing.get(item.id);
       const title = item.summary || 'Évènement sans titre';
-      return { ...(old || {}), id: old?.id || `google-${item.id}`, source: 'google', googleEventId: item.id, date, title, amount: old?.amount ?? defaultAmountForTitle(title) };
+      return { ...(old || {}), id: old?.id || `google-${item.id}`, source: 'google', googleEventId: item.id, date, title, amount: old?.amount ?? defaultAmountForTitle(title), amountMode: old?.amountMode || 'rule' };
     }).filter(Boolean);
     const startKey = monthKey(start);
     const endKey = monthKey(end);
@@ -351,7 +361,7 @@
     modal.querySelector('form').addEventListener('submit', (submitEvent) => {
       submitEvent.preventDefault();
       const form = new FormData(submitEvent.currentTarget);
-      const next = { ...(existing || {}), id: existing?.id || uid(), date: String(form.get('date')), title: String(form.get('title')).trim(), amount: Number(form.get('amount')) || 0 };
+      const next = { ...(existing || {}), id: existing?.id || uid(), date: String(form.get('date')), title: String(form.get('title')).trim(), amount: Number(form.get('amount')) || 0, amountMode: 'manual' };
       if (existing) data.events = data.events.map((item) => item.id === existing.id ? next : item);
       else data.events.push(next);
       data.activeMonth = next.date.slice(0, 7);
@@ -398,8 +408,8 @@
   document.addEventListener('change', (event) => {
     if (event.target.id === 'agenda-month') { data.activeMonth = event.target.value; save(); render(); }
     if (event.target.id === 'agenda-goal') { data.forecastGoal = Number(event.target.value) || 0; save(); render(); }
-    if (event.target.dataset.ruleKeyword) { const rule = data.rules.find((item) => item.id === event.target.dataset.ruleKeyword); if (rule) { rule.keyword = event.target.value; save(); } }
-    if (event.target.dataset.ruleAmount) { const rule = data.rules.find((item) => item.id === event.target.dataset.ruleAmount); if (rule) { rule.amount = Number(event.target.value) || 0; save(); } }
+    if (event.target.dataset.ruleKeyword) { const rule = data.rules.find((item) => item.id === event.target.dataset.ruleKeyword); if (rule) { rule.keyword = event.target.value; applyRulesToImportedEvents(); save(); render(); } }
+    if (event.target.dataset.ruleAmount) { const rule = data.rules.find((item) => item.id === event.target.dataset.ruleAmount); if (rule) { rule.amount = Number(event.target.value) || 0; applyRulesToImportedEvents(); save(); render(); } }
   });
 
   const observer = new MutationObserver(() => { ensureView(); bindDashboardPicker(); });
