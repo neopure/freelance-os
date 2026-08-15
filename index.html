@@ -1209,7 +1209,31 @@ render();
     const edited=typeof editMonth!=='undefined'&&editMonth;
     const index=state.months.findIndex(item=>item.id===(edited||month));
     if(index>=0)state.months[index]=data;else state.months.push(data);
+    state.dashboardMonth=[...state.months].sort((a,b)=>b.id.localeCompare(a.id))[0]?.id||month;
+    state.dashboardMonthPinned=false;
     save();render();close('#month-modal');
+  },true);
+})();
+</script><script>
+/* Accueil : par défaut, le mois affiché est toujours le dernier mois renseigné. */
+(function followLatestRecordedMonth(){
+  const latest=()=>[...state.months].sort((a,b)=>b.id.localeCompare(a.id))[0]?.id;
+  const latestId=latest();
+  // Une seule remise à plat pour les anciennes sessions restées bloquées sur un mois consulté.
+  const mustResetToLatest=state.dashboardLatestMonthFix!==1;
+  if(latestId&&(mustResetToLatest||!state.dashboardMonthPinned)&&state.dashboardMonth!==latestId){
+    state.dashboardMonth=latestId;
+    state.dashboardMonthPinned=false;
+    state.dashboardLatestMonthFix=1;
+    save();
+    render();
+  }else if(mustResetToLatest){
+    state.dashboardLatestMonthFix=1;
+    save();
+  }
+  q('#dashboard-month-picker')?.addEventListener('change',()=>{
+    state.dashboardMonthPinned=true;
+    save();
   },true);
 })();
 </script></body></html>
