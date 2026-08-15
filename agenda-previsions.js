@@ -410,6 +410,15 @@
   }
 
   document.addEventListener('click', (event) => {
+    const regularNav = event.target.closest('.sidebar .nav');
+    if (regularNav && regularNav.dataset.agendaNav !== 'true') {
+      document.querySelector('[data-agenda-nav]')?.classList.remove('active');
+      const agendaView = document.querySelector('#agenda-forecast');
+      if (agendaView) {
+        agendaView.hidden = true;
+        agendaView.classList.remove('active');
+      }
+    }
     const target = event.target.closest('[data-agenda-nav],[data-agenda-add],[data-agenda-edit],[data-agenda-month],[data-rule-add],[data-rule-delete],[data-google-connect]');
     if (!target) return;
     if (target.dataset.agendaNav) { event.preventDefault(); showAgenda(); }
