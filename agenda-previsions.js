@@ -245,18 +245,28 @@
       payload = await pageResponse.json();
       googleItems.push(...(payload.items || []));
     }
+    // Les toutes premières synchronisations ne sauvegardaient pas encore l'ID
+    // Google de chaque rendez-vous. On les reconnaît à leur absence de source,
+    // afin de les remplacer également lors de cette synchronisation.
+    const isManualEvent = (item) => item.source === 'manual';
+    const signature = (item) => `${item.date || ''}|${String(item.title || '').trim().toLocaleLowerCase('fr-FR')}`;
     const existing = new Map(data.events.filter((item) => item.source === 'google' && item.googleEventId).map((item) => [item.googleEventId, item]));
+    const legacyImported = new Map(data.events.filter((item) => !isManualEvent(item)).map((item) => [signature(item), item]));
     const fetched = googleItems.map((item) => {
       const date = String(item.start?.date || item.start?.dateTime || '').slice(0, 10);
       if (!date) return null;
-      const old = existing.get(item.id);
       const title = item.summary || 'Évènement sans titre';
+      // Conserve une éventuelle correction manuelle du montant, même si cette
+      // date provenait d'une ancienne version de l'import.
+      const old = existing.get(item.id) || legacyImported.get(`${date}|${String(title).trim().toLocaleLowerCase('fr-FR')}`);
       return { ...(old || {}), id: old?.id || `google-${item.id}`, source: 'google', googleEventId: item.id, date, title, amount: old?.amountMode === 'manual' ? old.amount : defaultAmountForTitle(title), amountMode: old?.amountMode || 'rule' };
     }).filter(Boolean);
     const startKey = monthKey(start);
     const endKey = monthKey(end);
-    const isGoogleEvent = (item) => item.source === 'google' || Boolean(item.googleEventId) || String(item.id || '').startsWith('google-');
-    data.events = [...data.events.filter((item) => !isGoogleEvent(item) || item.date?.slice(0, 7) < startKey || item.date?.slice(0, 7) >= endKey), ...fetched];
+    // Dans la fenêtre synchronisée, Google est la source de vérité : un
+    // rendez-vous supprimé de Google doit donc disparaître ici. Les dates
+    // créées via « Ajouter une date » portent source: manual et sont préservées.
+    data.events = [...data.events.filter((item) => isManualEvent(item) || item.date?.slice(0, 7) < startKey || item.date?.slice(0, 7) >= endKey), ...fetched];
     data.google = { status: 'connected', lastSyncedAt: new Date().toISOString(), error: '' };
     save();
   }
@@ -390,7 +400,7 @@
     modal.querySelector('form').addEventListener('submit', (submitEvent) => {
       submitEvent.preventDefault();
       const form = new FormData(submitEvent.currentTarget);
-      const next = { ...(existing || {}), id: existing?.id || uid(), date: String(form.get('date')), title: String(form.get('title')).trim(), amount: Number(form.get('amount')) || 0, amountMode: 'manual' };
+      const next = { ...(existing || {}), id: existing?.id || uid(), source: existing?.source || 'manual', date: String(form.get('date')), title: String(form.get('title')).trim(), amount: Number(form.get('amount')) || 0, amountMode: 'manual' };
       if (existing) data.events = data.events.map((item) => item.id === existing.id ? next : item);
       else data.events.push(next);
       data.activeMonth = next.date.slice(0, 7);
