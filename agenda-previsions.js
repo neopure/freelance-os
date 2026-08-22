@@ -232,9 +232,21 @@
     const query = new URLSearchParams({ timeMin: start.toISOString(), timeMax: end.toISOString(), singleEvents: 'true', orderBy: 'startTime', maxResults: '2500' });
     const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${query}`, { headers: { Authorization: `Bearer ${googleAccessToken}` } });
     if (!response.ok) throw new Error('Google Agenda n’a pas pu fournir les rendez-vous. Réessaie de te connecter.');
-    const payload = await response.json();
+    // Google ne renvoie pas les évènements supprimés : la synchronisation doit donc
+    // remplacer la fenêtre synchronisée, pas seulement ajouter les nouveaux rendez-vous.
+    // On récupère aussi les éventuelles pages suivantes pour ne laisser aucune date de côté.
+    let payload = await response.json();
+    const googleItems = [...(payload.items || [])];
+    while (payload.nextPageToken) {
+      const pagedQuery = new URLSearchParams(query);
+      pagedQuery.set('pageToken', payload.nextPageToken);
+      const pageResponse = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${pagedQuery}`, { headers: { Authorization: `Bearer ${googleAccessToken}` } });
+      if (!pageResponse.ok) throw new Error('Google Agenda n’a pas pu fournir tous les rendez-vous. Réessaie de te connecter.');
+      payload = await pageResponse.json();
+      googleItems.push(...(payload.items || []));
+    }
     const existing = new Map(data.events.filter((item) => item.source === 'google' && item.googleEventId).map((item) => [item.googleEventId, item]));
-    const fetched = (payload.items || []).map((item) => {
+    const fetched = googleItems.map((item) => {
       const date = String(item.start?.date || item.start?.dateTime || '').slice(0, 10);
       if (!date) return null;
       const old = existing.get(item.id);
@@ -243,7 +255,8 @@
     }).filter(Boolean);
     const startKey = monthKey(start);
     const endKey = monthKey(end);
-    data.events = [...data.events.filter((item) => item.source !== 'google' || item.date?.slice(0, 7) < startKey || item.date?.slice(0, 7) >= endKey), ...fetched];
+    const isGoogleEvent = (item) => item.source === 'google' || Boolean(item.googleEventId) || String(item.id || '').startsWith('google-');
+    data.events = [...data.events.filter((item) => !isGoogleEvent(item) || item.date?.slice(0, 7) < startKey || item.date?.slice(0, 7) >= endKey), ...fetched];
     data.google = { status: 'connected', lastSyncedAt: new Date().toISOString(), error: '' };
     save();
   }

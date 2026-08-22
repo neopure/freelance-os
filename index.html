@@ -935,11 +935,11 @@ function refineFineGrain(){if(!q('#fine-grain-style'))document.head.insertAdjace
   render=function(){organicSurfacesRender();addOrganicSurfaces();fixHeroGrainLayer();refineFineGrain()};
 render();
 </script><script>
-/* Le panneau latéral suit automatiquement le dernier mois clôturé et renseigné. */
+/* Le panneau latéral suit exactement le dernier mois enregistré dans « Mes mois ».
+   Il ne doit jamais rester bloqué sur le mois précédent après une nouvelle saisie. */
 function automaticSidebarMonth(){
   if(!state.months?.length)return;
-  const now=new Date(),cutoff=new Date(now.getFullYear(),now.getMonth()-1,1),cutoffId=`${cutoff.getFullYear()}-${String(cutoff.getMonth()+1).padStart(2,'0')}`;
-  const reference=[...state.months].sort((a,b)=>b.id.localeCompare(a.id)).find(item=>item.id<=cutoffId)||state.months[0];
+  const reference=[...state.months].sort((a,b)=>b.id.localeCompare(a.id))[0];
   if(!reference)return;
   const totals=calc(reference),goal=Number(state.monthlyGoal)||0,percent=goal?totals.revenue/goal*100:0,remaining=Math.max(0,goal-totals.revenue);
   q('#side-goal-label').textContent=goal?`Objectif mensuel · ${name(reference.month)}`:`CA du mois · ${name(reference.month)}`;
@@ -1267,25 +1267,25 @@ render();
   },true);
 })();
 </script><script>
-/* Accueil : par défaut, le mois affiché est toujours le dernier mois renseigné. */
+/* Accueil : le tableau de bord revient toujours au dernier mois enregistré.
+   Le sélecteur reste utilisable pour consulter un autre mois, sans bloquer le prochain enregistrement. */
 (function followLatestRecordedMonth(){
   const latest=()=>[...state.months].sort((a,b)=>b.id.localeCompare(a.id))[0]?.id;
-  const latestId=latest();
-  // Une seule remise à plat pour les anciennes sessions restées bloquées sur un mois consulté.
-  const mustResetToLatest=state.dashboardLatestMonthFix!==1;
-  if(latestId&&(mustResetToLatest||!state.dashboardMonthPinned)&&state.dashboardMonth!==latestId){
+  const selectLatest=({renderAfter=false}={})=>{
+    const latestId=latest();
+    if(!latestId)return;
+    const changed=state.dashboardMonth!==latestId||state.dashboardMonthPinned;
     state.dashboardMonth=latestId;
     state.dashboardMonthPinned=false;
-    state.dashboardLatestMonthFix=1;
-    save();
-    render();
-  }else if(mustResetToLatest){
-    state.dashboardLatestMonthFix=1;
-    save();
-  }
-  q('#dashboard-month-picker')?.addEventListener('change',()=>{
-    state.dashboardMonthPinned=true;
-    save();
+    state.dashboardLatestMonthFix=2;
+    if(changed)save();
+    if(changed&&renderAfter)render();
+  };
+  // Au rechargement, une ancienne consultation (ex. juillet) ne reste jamais affichée.
+  selectLatest();
+  // Après chaque sauvegarde de « Mes mois », l'accueil suit immédiatement le mois saisi.
+  document.addEventListener('submit',event=>{
+    if(event.target?.id==='month-form')setTimeout(()=>selectLatest({renderAfter:true}),0);
   },true);
 })();
 </script><script>
