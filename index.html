@@ -1240,7 +1240,7 @@ function simplifyInterfaceCopy(){
   ];
   wording.forEach(([selector,value])=>{const element=q(selector);if(element&&value)element.textContent=value;if(element&&!value)element.setAttribute('hidden','')});
 }
-function simplifyInterfaceStyle(){if(!q('#essential-reading-style'))document.head.insertAdjacentHTML('beforeend','<style id="essential-reading-style">.top{margin-bottom:20px!important}.top:after{bottom:-11px!important;width:110px!important}.head{margin:24px 0 12px!important}.side-status[hidden],.notice[hidden]{display:none!important}#fixed-overview .fixed-category-head{margin:20px 0 10px!important}#fixed-overview .fixed-category-head h3{font-size:18px!important}.fixed-category{min-height:92px!important}.fixed-category span{margin-top:0!important}.card em{margin-top:4px!important}.agenda-hero p:not(.agenda-eyebrow){display:none!important}.agenda-hero{padding:25px 30px!important}.agenda-card .agenda-note{margin:4px 0 14px!important}.agenda-google p{display:none!important}.agenda-year-head .agenda-note{display:none!important}</style>')}
+function simplifyInterfaceStyle(){if(!q('#essential-reading-style'))document.head.insertAdjacentHTML('beforeend','<style id="essential-reading-style">.top{margin-bottom:20px!important}.top:after{bottom:-11px!important;width:110px!important}.head{margin:24px 0 12px!important}.side-status[hidden],.notice[hidden]{display:none!important}#fixed-overview .fixed-category-head{margin:20px 0 10px!important}#fixed-overview .fixed-category-head h3{font-size:18px!important}.fixed-category{min-height:92px!important}.fixed-category span{margin-top:0!important}.card em{margin-top:4px!important}.agenda-hero p:not(.agenda-eyebrow){display:none!important}.agenda-hero{padding:25px 30px!important}.agenda-card .agenda-note{margin:4px 0 14px!important}.agenda-year-head .agenda-note{display:none!important}</style>')}
 const essentialReadingRender=render;
 render=function(){essentialReadingRender();simplifyInterfaceCopy();simplifyInterfaceStyle()};
 render();
@@ -1339,4 +1339,56 @@ function importedBricksMetrics(){
 const importedBricksRender=render;
 render=function(){importedBricksRender();importedBricksMetrics()};
 render();
+</script><script>
+/* Visualisations de lecture : elles réutilisent uniquement les chiffres déjà calculés par l'application. */
+(function(){
+  const euro=(value)=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Number(value)||0);
+  const toNumber=(value)=>{const match=String(value||'').replace(/\u202f|\u00a0/g,' ').match(/[\d ]+(?:,\d+)?/);return match?Number(match[0].replace(/ /g,'').replace(',','.')):0};
+  const shortMonth=(key)=>{try{return new Intl.DateTimeFormat('fr-FR',{month:'short'}).format(new Date(`${key}-01T12:00:00`)).replace('.','')}catch{return key}};
+  const style=document.createElement('style');
+  style.id='finance-visual-charts-style';
+  style.textContent=`
+    .finance-mini-chart{margin:20px 0 2px;padding:18px 20px;border-top:1px solid rgba(74,54,91,.11);background:linear-gradient(90deg,rgba(255,255,255,.42),rgba(246,241,250,.54));}
+    .finance-mini-chart__head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}.finance-mini-chart__head strong{font-size:15px;color:#242034}.finance-mini-chart__head span{font-size:12px;color:#7d7487}
+    .charge-bars{display:grid;gap:10px}.charge-bar-row{display:grid;grid-template-columns:minmax(105px,.55fr) minmax(90px,2fr) auto;align-items:center;gap:12px;font-size:13px}.charge-bar-row span:first-child{color:#665e70;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.charge-bar-track{height:8px;overflow:hidden;border-radius:999px;background:#eee9f1}.charge-bar-fill{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#35f2f2,#b66bf2)}.charge-bar-row strong{color:#332a42;font-size:13px}
+    .bricks-trend-chart{margin:22px 0 0;padding:19px 22px;border:1px solid rgba(255,101,47,.2);border-radius:20px;background:linear-gradient(120deg,#fffaf6,#fff1e8)}.bricks-trend-chart__head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-bottom:8px}.bricks-trend-chart__head strong{font-size:16px;color:#173656}.bricks-trend-chart__head span{font-size:12px;color:#896e60}.bricks-trend-chart svg{display:block;width:100%;height:150px;overflow:visible}.bricks-chart-area{fill:rgba(255,101,47,.11)}.bricks-chart-line{fill:none;stroke:#ff652f;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}.bricks-chart-dot{fill:#fff;stroke:#ff652f;stroke-width:2}.bricks-chart-grid{stroke:rgba(109,75,59,.13);stroke-width:1}.bricks-chart-label{font:11px system-ui,sans-serif;fill:#896e60}.bricks-trend-chart__legend{display:flex;gap:16px;margin-top:8px;color:#806b60;font-size:12px}.bricks-trend-chart__legend i{display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:50%;background:#ff652f}
+    @media(max-width:700px){.finance-mini-chart,.bricks-trend-chart{padding:16px}.charge-bar-row{grid-template-columns:88px 1fr auto;gap:8px}.charge-bar-row strong{font-size:12px}.bricks-trend-chart svg{height:130px}}
+  `;
+  document.head.appendChild(style);
+  function drawCharges(){
+    const overview=document.querySelector('#fixed-overview');
+    const grid=overview&&overview.querySelector('.fixed-category-grid');
+    if(!overview||!grid)return;
+    overview.querySelector('#fixed-category-chart')?.remove();
+    const rows=[...grid.querySelectorAll('.fixed-category')].map((card)=>({label:card.querySelector('small')?.textContent.trim()||'Autre',value:toNumber(card.querySelector('b')?.textContent)})).filter((item)=>item.value>0);
+    if(!rows.length)return;
+    const max=Math.max(...rows.map((item)=>item.value),1);
+    const chart=document.createElement('section');
+    chart.id='fixed-category-chart';chart.className='finance-mini-chart';
+    chart.innerHTML=`<div class="finance-mini-chart__head"><strong>Poids des charges par catégorie</strong><span>Montants mensuels</span></div><div class="charge-bars">${rows.sort((a,b)=>b.value-a.value).map((item)=>`<div class="charge-bar-row"><span title="${item.label}">${item.label}</span><i class="charge-bar-track"><b class="charge-bar-fill" style="width:${Math.max(4,item.value/max*100)}%"></b></i><strong>${euro(item.value)}</strong></div>`).join('')}</div>`;
+    grid.insertAdjacentElement('afterend',chart);
+  }
+  function drawBricks(){
+    const view=document.querySelector('#investments');
+    const anchor=view&&view.querySelector('.bricks-cards');
+    if(!view||!anchor||!state?.bricks)return;
+    view.querySelector('#bricks-history-chart')?.remove();
+    const monthly=state.bricks.monthlyInvestments||{};
+    const values=Object.keys(monthly).sort().slice(-12).map((key)=>({key,value:Number(monthly[key])||0})).filter((item)=>item.value>0);
+    if(values.length<2)return;
+    const width=720,height=150,padX=20,padY=18,max=Math.max(...values.map((item)=>item.value),1);
+    const step=(width-padX*2)/Math.max(values.length-1,1);
+    const points=values.map((item,index)=>`${padX+index*step},${height-padY-(item.value/max)*(height-padY*2)}`).join(' ');
+    const area=`${padX},${height-padY} ${points} ${padX+(values.length-1)*step},${height-padY}`;
+    const labels=values.map((item,index)=>`<text x="${padX+index*step}" y="${height-1}" text-anchor="middle" class="bricks-chart-label">${shortMonth(item.key)}</text>`).join('');
+    const dots=values.map((item,index)=>{const x=padX+index*step,y=height-padY-(item.value/max)*(height-padY*2);return `<circle class="bricks-chart-dot" cx="${x}" cy="${y}" r="3.5"><title>${shortMonth(item.key)} : ${euro(item.value)}</title></circle>`}).join('');
+    const chart=document.createElement('section');chart.id='bricks-history-chart';chart.className='bricks-trend-chart';
+    chart.innerHTML=`<div class="bricks-trend-chart__head"><strong>Rythme d’investissement</strong><span>12 derniers mois investis</span></div><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Évolution de tes investissements Bricks par mois"><path class="bricks-chart-grid" d="M${padX} ${height*.32}H${width-padX} M${padX} ${height*.6}H${width-padX} M${padX} ${height-padY}H${width-padX}"/><polygon class="bricks-chart-area" points="${area}"/><polyline class="bricks-chart-line" points="${points}"/>${dots}${labels}</svg><div class="bricks-trend-chart__legend"><span><i></i>Investi chaque mois</span></div>`;
+    anchor.insertAdjacentElement('afterend',chart);
+  }
+  function refreshVisualCharts(){drawCharges();drawBricks()}
+  const renderBeforeVisualCharts=render;
+  render=function(){renderBeforeVisualCharts();refreshVisualCharts()};
+  refreshVisualCharts();
+})();
 </script></body></html>

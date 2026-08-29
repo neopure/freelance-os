@@ -14,7 +14,7 @@
     forecastGoal: 0,
     rules: [],
     events: [],
-    google: { status: 'idle', lastSyncedAt: '', error: '' }
+    google: { status: 'idle', lastSyncedAt: '', lastCount: 0, error: '' }
   };
 
   let data = load();
@@ -98,6 +98,18 @@
       .agenda-kpi strong { font-size:22px; color:#171629; }
       .agenda-kpi.accent { background:linear-gradient(120deg,rgba(53,242,242,.22),rgba(214,148,242,.25)); }
       .agenda-kpi.accent strong { color:#15999d; }
+      .agenda-forecast-chart { margin:18px 0 9px; padding:15px 15px 11px; border:1px solid #eee8f1; border-radius:16px; background:linear-gradient(135deg,#fff 0%,#fbf8ff 100%); }
+      .agenda-chart-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:11px; }
+      .agenda-chart-head strong { font-size:13px; color:#2a243c; }
+      .agenda-chart-head span { font-size:12px; font-weight:750; color:#8b65a4; }
+      .agenda-bars { position:relative; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); align-items:end; gap:10px; min-height:112px; padding:9px 2px 0; background:repeating-linear-gradient(to bottom,transparent 0,transparent 35px,rgba(125,105,145,.09) 36px); }
+      .agenda-bar-slot { z-index:1; display:flex; min-width:0; min-height:103px; flex-direction:column; align-items:center; justify-content:end; gap:6px; }
+      .agenda-bar-value { min-height:16px; font-size:10px; font-weight:800; color:#595166; white-space:nowrap; }
+      .agenda-bar { width:min(38px,72%); min-height:5px; border-radius:10px 10px 4px 4px; background:linear-gradient(180deg,#35f2f2,#22bfc4); box-shadow:0 6px 14px rgba(53,242,242,.19); transition:height .3s ease; }
+      .agenda-bar-slot.zero .agenda-bar { background:#e9e3ed; box-shadow:none; }
+      .agenda-bar-label { color:#776f83; font-size:11px; font-weight:750; text-transform:capitalize; }
+      .agenda-goal-line { z-index:2; position:absolute; right:0; left:0; height:1px; border-top:1px dashed #b66bf2; pointer-events:none; }
+      .agenda-goal-line span { position:absolute; right:0; top:-18px; padding-left:5px; background:#fbf9fd; color:#9661c7; font-size:10px; font-weight:800; }
       .agenda-toolbar { display:flex; align-items:end; gap:12px; margin-bottom:17px; }
       .agenda-field { display:flex; flex-direction:column; gap:6px; flex:1; font-size:12px; font-weight:700; color:#706a7d; }
       .agenda-field input,.agenda-field select { width:100%; height:42px; padding:0 12px; font:inherit; color:#171629; background:#fff; border:1px solid #e6dced; border-radius:11px; outline:none; }
@@ -117,7 +129,7 @@
       .agenda-rule { display:grid; grid-template-columns:1fr 130px auto; gap:8px; align-items:center; }
       .agenda-rule input { height:40px; padding:0 10px; border:1px solid #e9deee; border-radius:10px; color:#29243a; font-size:13px; }
       .agenda-rule .agenda-icon-button { background:#fbf4fa; border-radius:9px; color:#be4e87; }
-      .agenda-settings { margin-top:16px; padding-top:16px; border-top:1px solid #eee8f1; }
+      .agenda-settings { display:flex; flex-wrap:wrap; gap:9px; margin-top:16px; padding-top:16px; border-top:1px solid #eee8f1; }
       .agenda-year { margin-top:22px; }
       .agenda-year-head { display:flex; justify-content:space-between; align-items:end; gap:15px; margin-bottom:12px; }
       .agenda-year-list { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
@@ -139,7 +151,7 @@
       .agenda-nav { position:relative; }
       .agenda-nav:after { content:'Prévision'; position:absolute; right:14px; font-size:9px; color:#35f2f2; opacity:.85; }
       @media (max-width:900px) { .agenda-grid { grid-template-columns:1fr; } .agenda-year-list { grid-template-columns:repeat(2,1fr); } .agenda-kpis { grid-template-columns:repeat(2,1fr); } }
-      @media (max-width:600px) { #agenda-forecast { padding-bottom:95px; } .agenda-hero,.agenda-card { padding:19px; border-radius:18px; } .agenda-hero h2 { font-size:27px; } .agenda-event { grid-template-columns:62px 1fr auto; } .agenda-event .agenda-icon-button { grid-column:3; } .agenda-toolbar,.agenda-rule { flex-direction:column; display:flex; align-items:stretch; } .agenda-year-list { grid-template-columns:1fr 1fr; } .agenda-form-grid { grid-template-columns:1fr; } .agenda-form-grid .wide { grid-column:auto; } }
+      @media (max-width:600px) { #agenda-forecast { padding-bottom:95px; } .agenda-hero,.agenda-card { padding:19px; border-radius:18px; } .agenda-hero h2 { font-size:27px; } .agenda-event { grid-template-columns:62px 1fr auto; } .agenda-event .agenda-icon-button { grid-column:3; } .agenda-toolbar,.agenda-rule { flex-direction:column; display:flex; align-items:stretch; } .agenda-year-list { grid-template-columns:1fr 1fr; } .agenda-form-grid { grid-template-columns:1fr; } .agenda-form-grid .wide { grid-column:auto; } .agenda-bars { gap:4px; } .agenda-bar-value { font-size:9px; } }
     `;
     document.head.appendChild(style);
   }
@@ -188,7 +200,7 @@
   function googleStatusText() {
     if (data.google?.status === 'syncing') return 'Connexion et synchronisation en cours…';
     if (data.google?.error) return data.google.error;
-    if (data.google?.lastSyncedAt) return `Synchronisé le ${new Date(data.google.lastSyncedAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}.`;
+    if (data.google?.lastSyncedAt) return `${Number(data.google.lastCount) || 0} date${Number(data.google.lastCount) > 1 ? 's' : ''} Google · synchronisé le ${new Date(data.google.lastSyncedAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}.`;
     return 'Connecte ton compte pour importer tes rendez-vous à venir.';
   }
 
@@ -267,8 +279,29 @@
     // rendez-vous supprimé de Google doit donc disparaître ici. Les dates
     // créées via « Ajouter une date » portent source: manual et sont préservées.
     data.events = [...data.events.filter((item) => isManualEvent(item) || item.date?.slice(0, 7) < startKey || item.date?.slice(0, 7) >= endKey), ...fetched];
-    data.google = { status: 'connected', lastSyncedAt: new Date().toISOString(), error: '' };
+    data.google = { status: 'connected', lastSyncedAt: new Date().toISOString(), lastCount: fetched.length, error: '' };
     save();
+  }
+
+  function resetImportedGoogleDates() {
+    const start = new Date();
+    start.setDate(1);
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + 15);
+    const startKey = monthKey(start);
+    const endKey = monthKey(end);
+    const removable = data.events.filter((item) => item.source !== 'manual' && item.date?.slice(0, 7) >= startKey && item.date?.slice(0, 7) < endKey);
+    if (!removable.length) {
+      connectGoogleCalendar();
+      return;
+    }
+    const message = `${removable.length} date${removable.length > 1 ? 's' : ''} importée${removable.length > 1 ? 's' : ''} de Google vont être remplacée${removable.length > 1 ? 's' : ''} par la version actuelle de ton Agenda. Tes dates ajoutées manuellement dans Freelance OS seront conservées.`;
+    if (!window.confirm(message)) return;
+    data.events = data.events.filter((item) => item.source === 'manual' || item.date?.slice(0, 7) < startKey || item.date?.slice(0, 7) >= endKey);
+    data.google = { ...data.google, lastSyncedAt: '', lastCount: 0, error: '' };
+    save();
+    render();
+    connectGoogleCalendar();
   }
 
   async function connectGoogleCalendar() {
@@ -312,6 +345,11 @@
     const gap = minimumGoal > 0 ? Math.max(0, minimumGoal - total) : 0;
     const average = projectedMonthlyAverage(month);
     const months = availableMonths();
+    const chartMonths = months.filter((item) => item.key >= month).slice(0, 6);
+    const chartValues = chartMonths.map((item) => totalForMonth(item.key));
+    const chartMax = Math.max(minimumGoal || 0, ...chartValues, 1);
+    const goalPosition = minimumGoal > 0 ? Math.min(100, (minimumGoal / chartMax) * 100) : 0;
+    const forecastChart = chartMonths.length ? `<section class="agenda-forecast-chart" aria-label="Graphique des prévisions à venir"><div class="agenda-chart-head"><strong>Prévisions sur 6 mois</strong><span>${minimumGoal > 0 ? `Objectif : ${money.format(minimumGoal)} / mois` : 'Ajoute un objectif pour le comparer'}</span></div><div class="agenda-bars">${minimumGoal > 0 ? `<i class="agenda-goal-line" style="bottom:${goalPosition}%"><span>objectif</span></i>` : ''}${chartMonths.map((item, index) => { const value = chartValues[index]; const height = Math.max(value > 0 ? 7 : 3, (value / chartMax) * 100); return `<div class="agenda-bar-slot ${value ? '' : 'zero'}"><span class="agenda-bar-value">${value ? money.format(value) : '—'}</span><i class="agenda-bar" style="height:${height}%"></i><span class="agenda-bar-label">${esc(item.label.split(' ')[0].slice(0, 4))}</span></div>`; }).join('')}</div></section>` : '';
     const monthOptions = months.map((item) => `<option value="${item.key}" ${item.key === month ? 'selected' : ''}>${esc(item.label)}</option>`).join('');
     const list = events.length ? events.map((event) => {
       const date = new Date(`${event.date}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
@@ -341,6 +379,7 @@
             <div class="agenda-kpi"><span>Moyenne des projections</span><strong>${money.format(average)}</strong></div>
             <div class="agenda-kpi"><span>Objectif CA minimum</span><strong>${minimumGoal > 0 ? money.format(minimumGoal) : '—'}</strong></div>
           </div>
+          ${forecastChart}
           ${minimumGoal > 0 ? `<p class="agenda-note" style="margin:13px 0 2px">${total >= minimumGoal ? 'Objectif minimum atteint pour ce mois.' : `Il reste ${money.format(gap)} pour atteindre ton minimum ce mois-ci.`}</p>` : ''}
           <div class="agenda-event-list">${list}</div>
         </section>
@@ -349,7 +388,7 @@
             <div class="agenda-google-mark">⌘</div>
             <strong>Google Agenda</strong>
             <p>${esc(googleStatusText())}</p>
-            <div class="agenda-settings"><button class="agenda-button ghost" type="button" data-google-connect ${data.google?.status === 'syncing' ? 'disabled' : ''}>${data.google?.lastSyncedAt ? 'Actualiser Agenda' : 'Connecter Google Agenda'}</button></div>
+            <div class="agenda-settings"><button class="agenda-button ghost" type="button" data-google-connect ${data.google?.status === 'syncing' ? 'disabled' : ''}>${data.google?.status === 'syncing' ? 'Synchronisation…' : data.google?.lastSyncedAt ? 'Synchroniser maintenant' : 'Connecter Google Agenda'}</button>${data.google?.lastSyncedAt ? '<button class="agenda-button ghost" type="button" data-google-reset>Nettoyer les anciennes dates</button>' : ''}</div>
           </section>
           <section class="agenda-card" style="margin-top:20px">
             <h3>Règles rapides</h3>
@@ -442,7 +481,7 @@
         agendaView.classList.remove('active');
       }
     }
-    const target = event.target.closest('[data-agenda-nav],[data-agenda-add],[data-agenda-edit],[data-agenda-month],[data-rule-add],[data-rule-delete],[data-google-connect]');
+    const target = event.target.closest('[data-agenda-nav],[data-agenda-add],[data-agenda-edit],[data-agenda-month],[data-rule-add],[data-rule-delete],[data-google-connect],[data-google-reset]');
     if (!target) return;
     if (target.dataset.agendaNav) { event.preventDefault(); showAgenda(); }
     if (target.dataset.agendaAdd !== undefined) openEventModal();
@@ -451,6 +490,7 @@
     if (target.dataset.ruleAdd !== undefined) { data.rules.push({ id: uid(), keyword: '', amount: 0 }); save(); render(); }
     if (target.dataset.ruleDelete) { data.rules = data.rules.filter((rule) => rule.id !== target.dataset.ruleDelete); save(); render(); }
     if (target.dataset.googleConnect !== undefined) connectGoogleCalendar();
+    if (target.dataset.googleReset !== undefined) resetImportedGoogleDates();
   });
 
   document.addEventListener('change', (event) => {
