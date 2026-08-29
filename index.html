@@ -884,9 +884,8 @@ function renderFixedOverview(){
   const view=q('#fixed'),table=q('#fixed-table');if(!view||!table)return;
   q('#fixed-overview')?.remove();
   const all=state.fixed.map(item=>({...item,monthly:monthlyAmount(item)})),pro=all.filter(item=>item.scope==='pro'),perso=all.filter(item=>item.scope==='perso'),sum=list=>list.reduce((total,item)=>total+item.monthly,0),total=sum(all);
-  const groups=Object.values(all.reduce((map,item)=>{const key=item.category||'Autre charge fixe';(map[key]??={name:key,total:0,count:0,pro:0,perso:0}).total+=item.monthly;map[key].count++;map[key][item.scope]+=item.monthly;return map},{})).sort((a,b)=>b.total-a.total);
   const panel=document.createElement('section');panel.id='fixed-overview';
-  panel.innerHTML=`<section class="fixed-summary-v2"><div class="fixed-summary-total"><small>Total à prévoir chaque mois</small><strong class="fixed-total-value">${money(total)}</strong><span>${all.length} charge${all.length>1?'s':''} active${all.length>1?'s':''}</span></div><div class="fixed-summary-breakdown"><div><small>Charges professionnelles</small><b>${money(sum(pro))}</b></div><div><small>Charges personnelles</small><b>${money(sum(perso))}</b></div></div></section><div class="fixed-category-head"><div><h3>Répartition par catégorie</h3><p>Les montants annuels sont ramenés automatiquement au mois.</p></div></div><div class="fixed-category-grid">${groups.map((group,index)=>`<article class="fixed-category"><i class="cat-dot cat-${index%5}"></i><div><small>${esc(group.name)}</small><b>${money(group.total)} <em>/ mois</em></b><span>${group.count} charge${group.count>1?'s':''}</span></div></article>`).join('')||'<p class="fixed-empty">Ajoute une première charge pour voir sa répartition.</p>'}</div>`;
+  panel.innerHTML=`<section class="fixed-summary-v2"><div class="fixed-summary-total"><small>Total à prévoir chaque mois</small><strong class="fixed-total-value">${money(total)}</strong><span>${all.length} charge${all.length>1?'s':''} active${all.length>1?'s':''}</span></div><div class="fixed-summary-breakdown"><div><small>Charges professionnelles</small><b>${money(sum(pro))}</b></div><div><small>Charges personnelles</small><b>${money(sum(perso))}</b></div></div></section>`;
   view.querySelector('.head').insertAdjacentElement('afterend',panel);
   table.innerHTML='<div class="row headrow"><span>Charge</span><span>Catégorie</span><span>Type</span><span>Mensualité</span><span></span><span></span><span></span></div>'+all.sort((a,b)=>a.category.localeCompare(b.category)||a.label.localeCompare(b.label)).map(item=>`<div class="row edit" data-fixed="${item.id}"><span class="month">${esc(item.label)}${item.frequency==='annual'?'<small class="annual-tag">Annuel</small>':''}</span><span class="muted">${esc(item.category)}</span><span class="muted">${item.scope==='pro'?'Professionnelle':'Personnelle'}</span><span class="negative">${money(item.monthly)}</span><span></span><span></span><span></span></div>`).join('');
   qa('[data-fixed]').forEach(element=>element.addEventListener('click',()=>openFixed(element.dataset.fixed)));
@@ -1345,30 +1344,34 @@ render();
 /* Visualisations de lecture : elles réutilisent uniquement les chiffres déjà calculés par l'application. */
 (function(){
   const euro=(value)=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Number(value)||0);
-  const toNumber=(value)=>{const match=String(value||'').replace(/\u202f|\u00a0/g,' ').match(/[\d ]+(?:,\d+)?/);return match?Number(match[0].replace(/ /g,'').replace(',','.')):0};
   const shortMonth=(key)=>{try{return new Intl.DateTimeFormat('fr-FR',{month:'short'}).format(new Date(`${key}-01T12:00:00`)).replace('.','')}catch{return key}};
+  const longMonth=(key)=>{try{return new Intl.DateTimeFormat('fr-FR',{month:'long',year:'numeric'}).format(new Date(`${key}-01T12:00:00`))}catch{return key}};
   const style=document.createElement('style');
   style.id='finance-visual-charts-style';
   style.textContent=`
-    .finance-mini-chart{margin:20px 0 2px;padding:18px 20px;border-top:1px solid rgba(74,54,91,.11);background:linear-gradient(90deg,rgba(255,255,255,.42),rgba(246,241,250,.54));}
+    .finance-mini-chart{margin:20px 0 2px;padding:20px 22px;border:1px solid rgba(74,54,91,.11);border-radius:18px;background:linear-gradient(90deg,rgba(255,255,255,.72),rgba(246,241,250,.68));}
     .finance-mini-chart__head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}.finance-mini-chart__head strong{font-size:15px;color:#242034}.finance-mini-chart__head span{font-size:12px;color:#7d7487}
     .charge-bars{display:grid;gap:10px}.charge-bar-row{display:grid;grid-template-columns:minmax(105px,.55fr) minmax(90px,2fr) auto;align-items:center;gap:12px;font-size:13px}.charge-bar-row span:first-child{color:#665e70;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.charge-bar-track{height:8px;overflow:hidden;border-radius:999px;background:#eee9f1}.charge-bar-fill{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#35f2f2,#b66bf2)}.charge-bar-row strong{color:#332a42;font-size:13px}
-    .bricks-trend-chart{margin:22px 0 0;padding:19px 22px;border:1px solid rgba(255,101,47,.2);border-radius:20px;background:linear-gradient(120deg,#fffaf6,#fff1e8)}.bricks-trend-chart__head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-bottom:8px}.bricks-trend-chart__head strong{font-size:16px;color:#173656}.bricks-trend-chart__head span{font-size:12px;color:#896e60}.bricks-trend-chart svg{display:block;width:100%;height:150px;overflow:visible}.bricks-chart-area{fill:rgba(255,101,47,.11)}.bricks-chart-line{fill:none;stroke:#ff652f;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}.bricks-chart-dot{fill:#fff;stroke:#ff652f;stroke-width:2}.bricks-chart-grid{stroke:rgba(109,75,59,.13);stroke-width:1}.bricks-chart-label{font:11px system-ui,sans-serif;fill:#896e60}.bricks-trend-chart__legend{display:flex;gap:16px;margin-top:8px;color:#806b60;font-size:12px}.bricks-trend-chart__legend i{display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:50%;background:#ff652f}
-    @media(max-width:700px){.finance-mini-chart,.bricks-trend-chart{padding:16px}.charge-bar-row{grid-template-columns:88px 1fr auto;gap:8px}.charge-bar-row strong{font-size:12px}.bricks-trend-chart svg{height:130px}}
+    .bricks-trend-chart{margin:22px 0 0;padding:20px 22px;border:1px solid rgba(255,101,47,.2);border-radius:20px;background:linear-gradient(120deg,#fffaf6,#fff1e8)}.bricks-trend-chart__head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-bottom:6px}.bricks-trend-chart__head strong{font-size:16px;color:#173656}.bricks-trend-chart__head span{font-size:12px;color:#896e60}.bricks-trend-chart__body{position:relative}.bricks-trend-chart svg{display:block;width:100%;height:164px;overflow:visible}.bricks-chart-area{fill:rgba(255,101,47,.11)}.bricks-chart-line{fill:none;stroke:#ff652f;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}.bricks-chart-dot{fill:#fff;stroke:#ff652f;stroke-width:2;transition:transform .16s ease,fill .16s ease}.bricks-chart-dot.active{fill:#ff652f;transform-box:fill-box;transform-origin:center;transform:scale(1.45)}.bricks-chart-hit{fill:transparent;cursor:pointer;outline:none}.bricks-chart-grid{stroke:rgba(109,75,59,.13);stroke-width:1}.bricks-chart-label{font:11px system-ui,sans-serif;fill:#896e60}.bricks-chart-tooltip{position:absolute;z-index:3;pointer-events:none;min-width:132px;padding:8px 10px;border-radius:11px;background:#173656;color:#fff;box-shadow:0 10px 22px rgba(23,54,86,.2);font-size:12px;line-height:1.35;opacity:0;transform:translate(-50%,-7px);transition:opacity .14s ease,transform .14s ease}.bricks-chart-tooltip b{display:block;font-size:13px}.bricks-chart-tooltip.is-visible{opacity:1;transform:translate(-50%,-13px)}.bricks-trend-chart__legend{display:flex;gap:16px;margin-top:4px;color:#806b60;font-size:12px}.bricks-trend-chart__legend i{display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:50%;background:#ff652f}
+    @media(max-width:700px){.finance-mini-chart,.bricks-trend-chart{padding:16px}.charge-bar-row{grid-template-columns:88px 1fr auto;gap:8px}.charge-bar-row strong{font-size:12px}.bricks-trend-chart svg{height:142px}.bricks-chart-label.mobile-muted{display:none}}
   `;
   document.head.appendChild(style);
   function drawCharges(){
     const overview=document.querySelector('#fixed-overview');
-    const grid=overview&&overview.querySelector('.fixed-category-grid');
-    if(!overview||!grid)return;
+    if(!overview)return;
     overview.querySelector('#fixed-category-chart')?.remove();
-    const rows=[...grid.querySelectorAll('.fixed-category')].map((card)=>({label:card.querySelector('small')?.textContent.trim()||'Autre',value:toNumber(card.querySelector('b')?.textContent)})).filter((item)=>item.value>0);
+    const rows=Object.values((state.fixed||[]).reduce((groups,item)=>{
+      const label=item.category||'Autre charge fixe';
+      if(!groups[label])groups[label]={label,value:0};
+      groups[label].value+=Number(monthlyAmount(item))||0;
+      return groups;
+    },{})).filter((item)=>item.value>0);
     if(!rows.length)return;
     const max=Math.max(...rows.map((item)=>item.value),1);
     const chart=document.createElement('section');
     chart.id='fixed-category-chart';chart.className='finance-mini-chart';
     chart.innerHTML=`<div class="finance-mini-chart__head"><strong>Poids des charges par catégorie</strong><span>Montants mensuels</span></div><div class="charge-bars">${rows.sort((a,b)=>b.value-a.value).map((item)=>`<div class="charge-bar-row"><span title="${item.label}">${item.label}</span><i class="charge-bar-track"><b class="charge-bar-fill" style="width:${Math.max(4,item.value/max*100)}%"></b></i><strong>${euro(item.value)}</strong></div>`).join('')}</div>`;
-    grid.insertAdjacentElement('afterend',chart);
+    overview.querySelector('.fixed-summary-v2')?.insertAdjacentElement('afterend',chart);
   }
   function drawBricks(){
     const view=document.querySelector('#investments');
@@ -1382,11 +1385,16 @@ render();
     const step=(width-padX*2)/Math.max(values.length-1,1);
     const points=values.map((item,index)=>`${padX+index*step},${height-padY-(item.value/max)*(height-padY*2)}`).join(' ');
     const area=`${padX},${height-padY} ${points} ${padX+(values.length-1)*step},${height-padY}`;
-    const labels=values.map((item,index)=>`<text x="${padX+index*step}" y="${height-1}" text-anchor="middle" class="bricks-chart-label">${shortMonth(item.key)}</text>`).join('');
-    const dots=values.map((item,index)=>{const x=padX+index*step,y=height-padY-(item.value/max)*(height-padY*2);return `<circle class="bricks-chart-dot" cx="${x}" cy="${y}" r="3.5"><title>${shortMonth(item.key)} : ${euro(item.value)}</title></circle>`}).join('');
+    const labels=values.map((item,index)=>{const label=index===0||index===values.length-1?`${shortMonth(item.key)} ${item.key.slice(2,4)}`:shortMonth(item.key);return `<text x="${padX+index*step}" y="${height-1}" text-anchor="middle" class="bricks-chart-label ${index%2?'mobile-muted':''}">${label}</text>`}).join('');
+    const dots=values.map((item,index)=>{const x=padX+index*step,y=height-padY-(item.value/max)*(height-padY*2);return `<circle class="bricks-chart-dot" data-bricks-dot="${index}" cx="${x}" cy="${y}" r="3.5"></circle><circle class="bricks-chart-hit" data-bricks-point="${index}" cx="${x}" cy="${y}" r="13" tabindex="0" role="button" aria-label="${longMonth(item.key)} : ${euro(item.value)}"></circle>`}).join('');
     const chart=document.createElement('section');chart.id='bricks-history-chart';chart.className='bricks-trend-chart';
-    chart.innerHTML=`<div class="bricks-trend-chart__head"><strong>Rythme d’investissement</strong><span>12 derniers mois investis</span></div><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Évolution de tes investissements Bricks par mois"><path class="bricks-chart-grid" d="M${padX} ${height*.32}H${width-padX} M${padX} ${height*.6}H${width-padX} M${padX} ${height-padY}H${width-padX}"/><polygon class="bricks-chart-area" points="${area}"/><polyline class="bricks-chart-line" points="${points}"/>${dots}${labels}</svg><div class="bricks-trend-chart__legend"><span><i></i>Investi chaque mois</span></div>`;
+    chart.innerHTML=`<div class="bricks-trend-chart__head"><strong>Rythme d’investissement</strong><span>Survole un point pour le détail</span></div><div class="bricks-trend-chart__body"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Évolution de tes investissements Bricks par mois"><path class="bricks-chart-grid" d="M${padX} ${height*.32}H${width-padX} M${padX} ${height*.6}H${width-padX} M${padX} ${height-padY}H${width-padX}"/><polygon class="bricks-chart-area" points="${area}"/><polyline class="bricks-chart-line" points="${points}"/>${dots}${labels}</svg><div class="bricks-chart-tooltip" role="status"></div></div><div class="bricks-trend-chart__legend"><span><i></i>Montants investis</span></div>`;
     anchor.insertAdjacentElement('afterend',chart);
+    const tooltip=chart.querySelector('.bricks-chart-tooltip');
+    const showPoint=(index)=>{const item=values[index];const x=padX+index*step;const y=height-padY-(item.value/max)*(height-padY*2);tooltip.innerHTML=`<b>${longMonth(item.key)}</b>${euro(item.value)} investi`;tooltip.style.left=`${Math.min(91,Math.max(9,x/width*100))}%`;tooltip.style.top=`${y/height*100}%`;tooltip.classList.add('is-visible');chart.querySelectorAll('.bricks-chart-dot').forEach((dot,dotIndex)=>dot.classList.toggle('active',dotIndex===index))};
+    const hidePoint=()=>{tooltip.classList.remove('is-visible');chart.querySelectorAll('.bricks-chart-dot').forEach(dot=>dot.classList.remove('active'))};
+    chart.querySelectorAll('[data-bricks-point]').forEach(point=>{const index=Number(point.dataset.bricksPoint);point.addEventListener('mouseenter',()=>showPoint(index));point.addEventListener('focus',()=>showPoint(index));point.addEventListener('click',()=>showPoint(index));point.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' ')showPoint(index)})});
+    chart.querySelector('svg').addEventListener('mouseleave',hidePoint);
   }
   function refreshVisualCharts(){drawCharges();drawBricks()}
   const renderBeforeVisualCharts=render;
