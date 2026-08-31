@@ -1411,9 +1411,26 @@ render();
   .card{min-height:0!important}
   #fixed .fixed-category-head p,#vat-intro p{display:none!important}
   .fos-drive-modal p{margin:2px 0 12px!important}
+  /* Une même grille de lecture : titre, chiffres, puis détail. */
+  .top{align-items:center!important;gap:18px!important}
+  .top>div:first-child{min-width:0}
+  .head{align-items:center!important;gap:12px!important}
+  .cards>.card{display:flex;flex-direction:column;justify-content:center}
+  .cards>.card .icon{flex:0 0 auto}
+  .panel,.card,.fixed-category,.vat-setting{overflow:hidden}
+  .fixed-category-grid,.bricks-cards{align-items:stretch!important}
+  .fixed-category,.bricks-cards>article{height:100%}
+  .finance-mini-chart,.bricks-trend-chart{margin-inline:auto}
+  .finance-mini-chart__head,.bricks-trend-chart__head,.bricks-section-head{align-items:center!important;gap:12px!important}
+  .charge-bar-row{align-items:center!important}
+  .agenda-card,.bricks-card{min-width:0}
+  .fos-drive-actions{align-items:stretch}
+  .fos-drive-actions button{flex:1;min-width:0}
   @media(max-width:760px){
     main{padding:16px 14px 82px!important}
     .top{align-items:center!important;margin-bottom:16px!important}
+    .top{flex-wrap:wrap!important;gap:10px!important}
+    .top>div:first-child{flex:1 1 170px}
     .top h1{font-size:22px!important}
     .top:after{display:none!important}
     .top .add{width:auto!important;height:40px!important;padding:0 13px!important;font-size:13px!important}
@@ -1423,12 +1440,23 @@ render();
     .hero .pill{padding:5px 8px!important;font-size:11px!important}
     .cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
     .card{padding:13px!important;border-radius:15px!important}
+    .cards>.card{justify-content:flex-start!important}
     .card .icon{display:none!important}
     .card small{font-size:10px!important;line-height:1.2!important}
     .card b{font-size:19px!important;margin-top:5px!important;white-space:normal!important}
     .head{margin:20px 0 10px!important}
     .head h2{font-size:17px!important}
     .panel{padding:14px!important;border-radius:16px!important}
+    .finance-mini-chart,.bricks-trend-chart{padding:14px!important;border-radius:16px!important}
+    .finance-mini-chart__head strong,.bricks-trend-chart__head strong{font-size:14px!important}
+    .charge-bar-row{grid-template-columns:minmax(0,1fr) minmax(66px,1.7fr) auto!important;gap:7px!important}
+    .charge-bar-row>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .agenda-card,.bricks-card{padding:14px!important}
+    .bricks-cards{gap:9px!important}
+    .fos-drive-modal{padding:20px!important;border-radius:20px!important}
+    .fos-drive-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important}
+    .fos-drive-actions .primary{grid-column:1/-1}
+    .fos-drive-actions button{padding:11px 9px!important;font-size:12px!important}
     #annual-sources-panel .gauge-top small,#annual-sources-panel #year-pocket-note small{display:none!important}
     #annual-sources-panel #year-result-delta{grid-template-columns:1fr!important;gap:7px!important;margin-top:10px!important}
     #annual-sources-panel #year-result-delta>span{padding:8px 10px!important}
