@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var BUILD = '2026-08-31-3';
+  var BUILD = '2026-08-31-4';
   var CLIENT_ID = '368626541227-mbk5skk95tonks4of8504vl0hfm2jscf.apps.googleusercontent.com';
   var SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
   var FILE_NAME = 'freelance-os-private-state.json';
@@ -23,8 +23,13 @@
         });
       });
       score += (finance.fixed || []).length * 3;
-      if (Number(finance.goal) > 0) score += 1;
-      if (finance.bricks && Object.keys(finance.bricks).length) score += 6;
+      /* An objective alone is only a setting, not a financial history. The
+         Bricks screen injects a demonstration seed on first load as well, so
+         it must not turn an otherwise empty device into a second version. */
+      if (finance.bricks &&
+          (Number(finance.bricks.wallet) !== 4082.56 ||
+           Number(finance.bricks.deposits) !== 11370 ||
+           finance.bricks.lastPeriod !== 'Juillet 2026')) score += 6;
     } catch (_) {}
     try {
       var agenda = JSON.parse(payload.values['freelance-os-agenda-previsions-v1'] || '{}');
