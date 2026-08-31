@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var BUILD = '2026-08-31-1';
+  var BUILD = '2026-08-31-3';
   var CLIENT_ID = '368626541227-mbk5skk95tonks4of8504vl0hfm2jscf.apps.googleusercontent.com';
   var SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
   var FILE_NAME = 'freelance-os-private-state.json';
@@ -10,6 +10,92 @@
   var token = '';
   var saveTimer = 0;
   var mounted = false;
+
+  /* A default/empty state must never win against an actual working copy. */
+  function payloadScore(payload) {
+    if (!payload || !payload.values) return 0;
+    var score = 0;
+    try {
+      var finance = JSON.parse(payload.values['neopure-finance-v1'] || '{}');
+      (finance.months || []).forEach(function (month) {
+        Object.keys(month || {}).forEach(function (key) {
+          if (key !== 'id' && key !== 'month' && Number(month[key]) !== 0) score += 4;
+        });
+      });
+      score += (finance.fixed || []).length * 3;
+      if (Number(finance.goal) > 0) score += 1;
+      if (finance.bricks && Object.keys(finance.bricks).length) score += 6;
+    } catch (_) {}
+    try {
+      var agenda = JSON.parse(payload.values['freelance-os-agenda-previsions-v1'] || '{}');
+      score += (agenda.rules || []).length * 2;
+      score += (agenda.events || []).length * 2;
+      score += (agenda.manualEvents || []).length * 2;
+    } catch (_) {}
+    return score;
+  }
+
+  function isUseful(payload) { return payloadScore(payload) > 0; }
+
+  function historicalRecovery() {
+    var month = function (id, bnc, bic, cdd, sacem, variable, personal) {
+      return { id: id, month: id, bnc: bnc, bic: bic, other: 0, cdd: cdd, sacem: sacem, pocket: 0, variable: variable || 0, personal: personal || 0, invest: 0, vatCollected: 0, vatDeduct: 0, lastYear: 0 };
+    };
+    return {
+      goal: 3000,
+      vatThreshold: 37500,
+      vatActivity: 'services',
+      bncTaxRate: 25.6,
+      bicTaxRate: 21.2,
+      cfpRate: 0.1,
+      cciRate: 0.04,
+      fixed: [
+        { id: 'recovery-capcut', label: 'Capcut Pro', amount: 12, category: 'Abonnement', scope: 'pro', frequency: 'monthly' },
+        { id: 'recovery-djcity', label: 'DJ City', amount: 249.96, category: 'Abonnement', scope: 'pro', frequency: 'annual' },
+        { id: 'recovery-fuviclan', label: 'Fuviclan', amount: 153, category: 'Abonnement', scope: 'pro', frequency: 'annual' },
+        { id: 'recovery-splice', label: 'Splice', amount: 13, category: 'Abonnement', scope: 'pro', frequency: 'monthly' },
+        { id: 'recovery-coworking', label: 'Loyer / coworking', amount: 600, category: 'Loyer / coworking', scope: 'perso', frequency: 'monthly' },
+        { id: 'recovery-other', label: 'Autre charge fixe', amount: 277.85, category: 'Autre charge fixe', scope: 'perso', frequency: 'monthly' },
+        { id: 'recovery-insurance', label: 'Assurances', amount: 105.25, category: 'Assurance', scope: 'perso', frequency: 'monthly' },
+        { id: 'recovery-phone', label: 'Téléphonie', amount: 18, category: 'Téléphonie', scope: 'perso', frequency: 'monthly' }
+      ],
+      months: [
+        month('2026-01', 5490, 0, 0, 221.53),
+        month('2026-02', 2201, 1200, 0, 0),
+        month('2026-03', 1000, 2420, 0, 0),
+        month('2026-04', 850, 1650, 398.51, 0.71),
+        month('2026-05', 1600, 2600, 0, 206.52),
+        month('2026-06', 1800, 3120, 0, 96.28),
+        month('2026-07', 2800, 1755, 0, 95.71),
+        month('2026-08', 4145, 0, 902.73, 0, 60, 900)
+      ]
+    };
+  }
+
+  function recover2026() {
+    var current = snapshot();
+    if (isUseful(current)) throw new Error('Une version contient déjà des données : la récupération ne l’écrase pas.');
+    var values = {};
+    values['neopure-finance-v1'] = JSON.stringify(historicalRecovery());
+    values['freelance-os-agenda-previsions-v1'] = localStorage.getItem('freelance-os-agenda-previsions-v1') || JSON.stringify({ rules: [], events: [], manualEvents: [] });
+    var recovered = { version: 2, updatedAt: new Date().toISOString(), values: values };
+    localStorage.setItem('neopure-finance-v1', values['neopure-finance-v1']);
+    localStorage.setItem('freelance-os-agenda-previsions-v1', values['freelance-os-agenda-previsions-v1']);
+    setStatus('Historique 2026 reconstitué · sauvegarde Drive…');
+    return (token ? Promise.resolve(token) : authorize(false))
+      .then(function () { return findFile(); })
+      .then(function (file) { return archive(recovered).then(function () { return upload(file && file.id, recovered); }); })
+      .then(function (saved) {
+        markConnected(saved.id, recovered.updatedAt);
+        setStatus('Historique 2026 restauré et sauvegardé dans Drive · actualisation…', 'ok');
+        window.setTimeout(function () { window.location.reload(); }, 500);
+        return saved;
+      })
+      .catch(function (error) {
+        setStatus(error.message || 'Récupération impossible', 'error');
+        throw error;
+      });
+  }
 
   function readMeta() {
     try { return JSON.parse(localStorage.getItem(META_KEY) || '{}'); } catch (_) { return {}; }
@@ -115,8 +201,8 @@
     });
   }
 
-  function upload(fileId) {
-    var body = JSON.stringify(snapshot());
+  function upload(fileId, payload) {
+    var body = JSON.stringify(payload || snapshot());
     if (fileId) {
       return fetch('https://www.googleapis.com/upload/drive/v3/files/' + encodeURIComponent(fileId) + '?uploadType=media', {
         method: 'PATCH',
@@ -148,6 +234,24 @@
     });
   }
 
+  function archive(payload) {
+    var body = JSON.stringify(payload);
+    var boundary = 'fos-archive-' + Date.now();
+    var name = 'freelance-os-archive-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json';
+    var multipart = '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' +
+      JSON.stringify({ name: name, parents: ['appDataFolder'], mimeType: 'application/json' }) +
+      '\r\n--' + boundary + '\r\nContent-Type: application/json\r\n\r\n' + body +
+      '\r\n--' + boundary + '--';
+    return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'multipart/related; boundary=' + boundary },
+      body: multipart
+    }).then(function (response) {
+      if (!response.ok) throw new Error('Archivage Drive impossible');
+      return response.json();
+    });
+  }
+
   function markConnected(fileId, savedAt) {
     writeMeta({ connected: true, fileId: fileId || '', lastSavedAt: savedAt || new Date().toISOString() });
   }
@@ -162,6 +266,19 @@
            overwrite it with that device's empty local storage. */
         if (file && !meta.fileId) {
           return download(file.id).then(function (payload) {
+            var local = snapshot();
+            if (!isUseful(payload) && isUseful(local)) {
+              return archive(local).then(function () { return upload(file.id, local); }).then(function (saved) {
+                markConnected(saved.id);
+                setStatus('Sauvegarde Drive initialisée avec tes données', 'ok');
+                return saved;
+              });
+            }
+            if (isUseful(payload) && isUseful(local)) {
+              setStatus('Deux versions trouvées : choisis Restaurer ou Mettre cet appareil dans Drive.', 'error');
+              return null;
+            }
+            if (!isUseful(payload) && !isUseful(local)) return recover2026();
             restore(payload);
             markConnected(file.id, payload.updatedAt || new Date().toISOString());
             setStatus('Données Drive chargées · actualisation…', 'ok');
@@ -193,6 +310,7 @@
         return download(file.id).then(function (payload) { return { file: file, payload: payload }; });
       })
       .then(function (result) {
+        if (!isUseful(result.payload)) throw new Error('La sauvegarde Drive est vide : elle ne peut pas remplacer tes données.');
         restore(result.payload);
         markConnected(result.file.id, result.payload.updatedAt || new Date().toISOString());
         setStatus('Données restaurées · actualisation…', 'ok');
@@ -209,7 +327,11 @@
     setStatus('Sauvegarde de cet appareil…');
     return (token ? Promise.resolve(token) : authorize(false))
       .then(function () { return findFile(); })
-      .then(function (file) { return upload(file && file.id); })
+      .then(function (file) {
+        var local = snapshot();
+        if (!isUseful(local)) throw new Error('Cet appareil ne contient pas encore de données à sauvegarder.');
+        return archive(local).then(function () { return upload(file && file.id, local); });
+      })
       .then(function (file) {
         markConnected(file.id);
         setStatus('Cet appareil est maintenant la référence Drive', 'ok');
@@ -228,13 +350,29 @@
     }).then(function (file) {
       if (file) {
         return download(file.id).then(function (payload) {
+          var local = snapshot();
+          if (!isUseful(payload) && isUseful(local)) {
+            return archive(local).then(function () { return upload(file.id, local); }).then(function (saved) {
+              markConnected(saved.id);
+              setStatus('Drive initialisé avec tes données', 'ok');
+              return saved;
+            });
+          }
+          if (isUseful(payload) && isUseful(local)) {
+            setStatus('Deux versions trouvées : choisis Restaurer ou Mettre cet appareil dans Drive.', 'error');
+            return null;
+          }
+          if (!isUseful(payload) && !isUseful(local)) return recover2026();
+          if (!isUseful(payload)) throw new Error('La sauvegarde Drive est vide. Ajoute ou restaure tes données avant de la connecter.');
           restore(payload);
           markConnected(file.id, payload.updatedAt || new Date().toISOString());
           setStatus('Données Drive restaurées · actualisation…', 'ok');
           window.setTimeout(function () { window.location.reload(); }, 350);
         });
       }
-      return upload(file && file.id).then(function (saved) {
+      var local = snapshot();
+      if (!isUseful(local)) return recover2026();
+      return archive(local).then(function () { return upload(file && file.id, local); }).then(function (saved) {
         markConnected(saved.id);
         setStatus('Drive connecté · sauvegarde automatique activée', 'ok');
       });
@@ -286,7 +424,7 @@
     var meta = readMeta();
     var overlay = document.createElement('div');
     overlay.className = 'fos-drive-overlay';
-    overlay.innerHTML = '<section class="fos-drive-modal" role="dialog" aria-modal="true"><button class="fos-drive-close" aria-label="Fermer">×</button><h2>Google Drive</h2><p>Privé · ' + (meta.connected ? 'connecté' : 'non connecté') + '</p><div data-drive-status class="fos-drive-status">' + (meta.connected ? 'Dernière sauvegarde · ' + formatDate(meta.lastSavedAt) : 'Connecte ton compte pour commencer.') + '</div><div class="fos-drive-actions"><button class="primary" data-drive-connect>' + (meta.connected ? 'Connecter à nouveau' : 'Connecter Google Drive') + '</button><button data-drive-save>Synchroniser</button><button data-drive-restore>Restaurer</button></div><button class="fos-drive-reference" data-drive-overwrite>Mettre cet appareil dans Drive</button><small class="fos-drive-note">Remplace la sauvegarde Drive.</small></section>';
+    overlay.innerHTML = '<section class="fos-drive-modal" role="dialog" aria-modal="true"><button class="fos-drive-close" aria-label="Fermer">×</button><h2>Google Drive</h2><p>Privé · ' + (meta.connected ? 'connecté' : 'non connecté') + '</p><div data-drive-status class="fos-drive-status">' + (meta.connected ? 'Dernière sauvegarde · ' + formatDate(meta.lastSavedAt) : 'Connecte ton compte pour commencer.') + '</div><div class="fos-drive-actions"><button class="primary" data-drive-connect>' + (meta.connected ? 'Vérifier Drive' : 'Connecter Google Drive') + '</button><button data-drive-save>Synchroniser</button><button data-drive-restore>Restaurer</button></div><button class="fos-drive-reference" data-drive-overwrite>Remplacer Drive avec cet appareil</button><small class="fos-drive-note">Une archive est créée avant chaque remplacement.</small></section>';
     document.body.appendChild(overlay);
     overlay.querySelector('.fos-drive-close').onclick = function () { overlay.remove(); };
     overlay.addEventListener('click', function (event) { if (event.target === overlay) overlay.remove(); });
