@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var BUILD = '2026-08-30-2';
+  var BUILD = '2026-08-31-1';
   var CLIENT_ID = '368626541227-mbk5skk95tonks4of8504vl0hfm2jscf.apps.googleusercontent.com';
   var SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
   var FILE_NAME = 'freelance-os-private-state.json';
@@ -85,6 +85,9 @@
             } else {
               reject(new Error((response && response.error) || 'Autorisation Google annulée'));
             }
+          },
+          error_callback: function (error) {
+            reject(new Error((error && error.message) || 'La fenêtre Google n’a pas pu être ouverte'));
           }
         });
         client.requestAccessToken({ prompt: silent ? '' : 'consent' });
@@ -154,8 +157,22 @@
     setStatus('Synchronisation…');
     return (token ? Promise.resolve(token) : authorize(!!silent))
       .then(function () { return findFile(); })
-      .then(function (file) { return upload((file && file.id) || meta.fileId); })
       .then(function (file) {
+        /* On a new device, the Drive copy is the source of truth.  Never
+           overwrite it with that device's empty local storage. */
+        if (file && !meta.fileId) {
+          return download(file.id).then(function (payload) {
+            restore(payload);
+            markConnected(file.id, payload.updatedAt || new Date().toISOString());
+            setStatus('Données Drive chargées · actualisation…', 'ok');
+            window.setTimeout(function () { window.location.reload(); }, 350);
+            return null;
+          });
+        }
+        return upload((file && file.id) || meta.fileId);
+      })
+      .then(function (file) {
+        if (!file) return file;
         markConnected(file.id);
         setStatus('Sauvegardé dans ton Drive · ' + formatDate(readMeta().lastSavedAt), 'ok');
         return file;
@@ -178,11 +195,28 @@
       .then(function (result) {
         restore(result.payload);
         markConnected(result.file.id, result.payload.updatedAt || new Date().toISOString());
-        setStatus('Données restaurées · recharge la page pour les afficher', 'ok');
+        setStatus('Données restaurées · actualisation…', 'ok');
+        window.setTimeout(function () { window.location.reload(); }, 350);
         return result;
       })
       .catch(function (error) {
         setStatus(error.message || 'Restauration impossible', 'error');
+        throw error;
+      });
+  }
+
+  function overwriteDrive() {
+    setStatus('Sauvegarde de cet appareil…');
+    return (token ? Promise.resolve(token) : authorize(false))
+      .then(function () { return findFile(); })
+      .then(function (file) { return upload(file && file.id); })
+      .then(function (file) {
+        markConnected(file.id);
+        setStatus('Cet appareil est maintenant la référence Drive', 'ok');
+        return file;
+      })
+      .catch(function (error) {
+        setStatus(error.message || 'Sauvegarde impossible', 'error');
         throw error;
       });
   }
@@ -192,11 +226,12 @@
     return authorize(false).then(function () {
       return findFile();
     }).then(function (file) {
-      if (file && window.confirm('Une sauvegarde Freelance OS existe déjà sur ce Drive. Restaurer ces données maintenant ?')) {
+      if (file) {
         return download(file.id).then(function (payload) {
           restore(payload);
           markConnected(file.id, payload.updatedAt || new Date().toISOString());
-          setStatus('Données Drive restaurées · recharge la page pour les afficher', 'ok');
+          setStatus('Données Drive restaurées · actualisation…', 'ok');
+          window.setTimeout(function () { window.location.reload(); }, 350);
         });
       }
       return upload(file && file.id).then(function (saved) {
@@ -240,6 +275,7 @@
     var node = document.createElement('style');
     node.id = 'fos-drive-style';
     node.textContent = '.fos-drive-trigger{width:44px;height:44px;border:1px solid #e9dcef;border-radius:14px;background:#fff;color:#5e53c9;font-size:20px;font-weight:800;cursor:pointer;box-shadow:0 8px 22px rgba(51,35,99,.11)}.fos-drive-trigger:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(51,35,99,.18)}.fos-drive-overlay{position:fixed;inset:0;background:rgba(17,14,34,.48);display:grid;place-items:center;z-index:99999;padding:20px}.fos-drive-modal{width:min(470px,100%);background:#fff;border-radius:24px;padding:28px;color:#17162a;box-shadow:0 30px 80px rgba(0,0,0,.28)}.fos-drive-modal h2{margin:0 0 8px;font-size:25px}.fos-drive-modal p{line-height:1.5;color:#6f6b7e}.fos-drive-status{margin:18px 0;padding:12px 14px;background:#f5f0f8;border-radius:12px;font-size:14px;color:#625d70}.fos-drive-status.ok{background:#e7fbf8;color:#117f80}.fos-drive-status.error{background:#fff0f4;color:#b33268}.fos-drive-actions{display:flex;gap:10px;flex-wrap:wrap}.fos-drive-actions button{border:0;border-radius:12px;padding:12px 14px;font-weight:750;cursor:pointer;background:#f4eef9;color:#50368c}.fos-drive-actions .primary{background:#b865ee;color:#fff}.fos-drive-close{float:right;background:none!important;font-size:24px!important;padding:0!important;color:#5c5767!important}';
+    node.textContent += '.fos-drive-reference{display:block;width:100%;margin-top:12px;border:1px solid #e6d8ef;border-radius:12px;padding:12px 14px;background:#fff;color:#6a5195;font-size:12px;font-weight:750;cursor:pointer}.fos-drive-note{display:block;margin-top:8px;color:#81778d;line-height:1.4;font-size:11px}';
     document.head.appendChild(node);
   }
 
@@ -250,7 +286,7 @@
     var meta = readMeta();
     var overlay = document.createElement('div');
     overlay.className = 'fos-drive-overlay';
-    overlay.innerHTML = '<section class="fos-drive-modal" role="dialog" aria-modal="true"><button class="fos-drive-close" aria-label="Fermer">×</button><h2>Mes données sur Google Drive</h2><p>Ta sauvegarde reste privée dans ton Drive. Elle permet de retrouver les mêmes données sur ton Mac et ton iPhone.</p><div data-drive-status class="fos-drive-status">' + (meta.connected ? 'Drive connecté · dernière sauvegarde ' + formatDate(meta.lastSavedAt) : 'Connecte ton Drive pour activer la sauvegarde automatique.') + '</div><div class="fos-drive-actions"><button class="primary" data-drive-connect>' + (meta.connected ? 'Reconnecter Drive' : 'Connecter Google Drive') + '</button><button data-drive-save>Synchroniser maintenant</button><button data-drive-restore>Restaurer depuis Drive</button></div></section>';
+    overlay.innerHTML = '<section class="fos-drive-modal" role="dialog" aria-modal="true"><button class="fos-drive-close" aria-label="Fermer">×</button><h2>Google Drive</h2><p>Privé · ' + (meta.connected ? 'connecté' : 'non connecté') + '</p><div data-drive-status class="fos-drive-status">' + (meta.connected ? 'Dernière sauvegarde · ' + formatDate(meta.lastSavedAt) : 'Connecte ton compte pour commencer.') + '</div><div class="fos-drive-actions"><button class="primary" data-drive-connect>' + (meta.connected ? 'Connecter à nouveau' : 'Connecter Google Drive') + '</button><button data-drive-save>Synchroniser</button><button data-drive-restore>Restaurer</button></div><button class="fos-drive-reference" data-drive-overwrite>Mettre cet appareil dans Drive</button><small class="fos-drive-note">Remplace la sauvegarde Drive.</small></section>';
     document.body.appendChild(overlay);
     overlay.querySelector('.fos-drive-close').onclick = function () { overlay.remove(); };
     overlay.addEventListener('click', function (event) { if (event.target === overlay) overlay.remove(); });
@@ -258,6 +294,9 @@
     overlay.querySelector('[data-drive-save]').onclick = function () { saveNow(false).catch(function () {}); };
     overlay.querySelector('[data-drive-restore]').onclick = function () {
       if (window.confirm('Les données locales seront remplacées par la sauvegarde Drive. Continuer ?')) restoreNow().catch(function () {});
+    };
+    overlay.querySelector('[data-drive-overwrite]').onclick = function () {
+      if (window.confirm('Cette sauvegarde remplacera la version actuellement sur Drive. Utiliser les données de cet appareil comme référence ?')) overwriteDrive().catch(function () {});
     };
   }
 
@@ -291,6 +330,7 @@
     connect: connect,
     sync: function () { return saveNow(false); },
     restore: restoreNow,
+    useThisDevice: overwriteDrive,
     status: function () { return readMeta(); }
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
