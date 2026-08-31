@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Freelance OS">
+  <defs>
+    <linearGradient id="bg" x1="90" y1="70" x2="930" y2="960" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2fe5e5"/>
+      <stop offset=".46" stop-color="#8d72f5"/>
+      <stop offset="1" stop-color="#bd61ed"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="230" y1="190" x2="795" y2="820" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#e9e4ff" stop-opacity=".74"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="845" cy="170" r="305" fill="#fff" fill-opacity=".14"/>
+  <circle cx="108" cy="910" r="360" fill="#251b63" fill-opacity=".13"/>
+  <path d="M241 241c0-42 34-76 76-76h390c42 0 76 34 76 76v542c0 42-34 76-76 76H317c-42 0-76-34-76-76V241Z" fill="url(#glass)"/>
+  <path d="M352 658V505m160 153V396m160 262V455" fill="none" stroke="#211944" stroke-width="64" stroke-linecap="round"/>
+  <path d="m335 522 177-144 169 93" fill="none" stroke="#fff" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="335" cy="522" r="26" fill="#fff"/>
+  <circle cx="512" cy="378" r="26" fill="#fff"/>
+  <circle cx="681" cy="471" r="26" fill="#fff"/>
+</svg>
