@@ -139,7 +139,7 @@
     var due = C.urssafUpcoming(state), d = due.details, urgent = due.total > 0 && due.days <= 7;
     return stage({ tone: urgent ? 'urgent' : '', kicker: 'Prélèvement URSSAF · 1er ' + esc(monthOnly(due.paymentMonth)), big: n(due.total),
       soft: d ? '<span class="countdown-inline">' + (due.days <= 1 ? 'demain' : 'dans ' + due.days + ' jours') + '</span> · calculé sur ton CA de ' + esc(monthOnly(due.period)) : 'Saisis ' + esc(monthOnly(due.period)) + ' pour le calculer',
-      stats: d ? [['BNC', money(d.bncContribution)], ['BIC', money(d.bicContribution)], ['CFP + CCI', money(d.cfpContribution + d.cciContribution)]] : [] }) +
+      stats: d ? [['BNC', money(d.bncContribution)], ['BIC', money(d.bicContribution)], ['CFP + CCI', money(d.cfpContribution + d.cciContribution)]].concat(state.vlEnabled ? [['Impôt', money(d.vlContribution)]] : []) : [] }) +
       strip(RENDERERS_ORIGINAL.fiscal(), ['.hero']);
   }
 

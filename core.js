@@ -48,6 +48,10 @@
       return { id: a.id || uid(), label: String(a.label || 'Activité'), kind: a.kind };
     });
     s.urssafLagMonths = finite(s.urssafLagMonths, 2);
+    /* Versement libératoire de l'impôt : prélevé avec les cotisations quand il est choisi. */
+    s.vlEnabled = s.vlEnabled === true;
+    s.vlBncRate = finite(s.vlBncRate, 2.2);
+    s.vlBicRate = finite(s.vlBicRate, 1.7);
     s.fixed = (Array.isArray(s.fixed) ? s.fixed : []).map(function (f) {
       return Object.assign({}, f, { id: f.id || uid(), label: f.label || 'Charge', amount: num(f.amount), category: f.category || 'Autre charge fixe', scope: f.scope || 'pro', frequency: f.frequency || 'monthly' });
     });
@@ -103,7 +107,8 @@
     /* Pas de CCI tant que le CA micro de l'année, ce mois compris, reste sous 5 000 €. */
     var yearToDate = micro + sum(state.months, function (x) { return x.month.slice(0, 4) === m.month.slice(0, 4) && x.month < m.month ? x.bnc + x.bic : 0; });
     var cciContribution = yearToDate > CCI_FREE ? Math.round(m.bic * state.cciRate / 100) : 0;
-    var urssaf = bncContribution + bicContribution + cfpContribution + cciContribution;
+    var vlContribution = state.vlEnabled ? Math.round(m.bnc * state.vlBncRate / 100) + Math.round(m.bic * state.vlBicRate / 100) : 0;
+    var urssaf = bncContribution + bicContribution + cfpContribution + cciContribution + vlContribution;
     var revenue = m.bnc + m.bic + m.other + m.cdd + m.sacem;
     var expenses = fixedTotal(state, 'pro') + m.variable + m.invest;
     var personal = fixedTotal(state, 'perso') + m.personal;
@@ -111,7 +116,7 @@
     var net = revenue - expenses - vat - urssaf;
     return {
       revenue: revenue, micro: micro, expenses: expenses, personal: personal, vat: vat,
-      bncContribution: bncContribution, bicContribution: bicContribution, cfpContribution: cfpContribution, cciContribution: cciContribution,
+      bncContribution: bncContribution, bicContribution: bicContribution, cfpContribution: cfpContribution, cciContribution: cciContribution, vlContribution: vlContribution,
       urssaf: urssaf, net: net, pocket: net - personal
     };
   }

@@ -340,21 +340,22 @@ function viewFiscal() {
   var d = due.details;
   var hero = '<div class="hero ' + (urgent ? 'urgent' : 'dark') + '"><div class="due"><div><span class="label">URSSAF · prélèvement du 1er ' + esc(monthOnly(due.paymentMonth)) + '</span>' +
     '<span class="big">' + n(due.total) + '</span><span class="countdown">' + urssafCountdown(due) + '</span></div></div>' +
-    (d ? '<div class="detail-row"><span>BNC <b>' + money(d.bncContribution) + '</b></span><span>BIC <b>' + money(d.bicContribution) + '</b></span><span>CFP + CCI <b>' + money(d.cfpContribution + d.cciContribution) + '</b></span><span>CA de ' + esc(monthName(due.period)) + '</span></div>'
+    (d ? '<div class="detail-row"><span>BNC <b>' + money(d.bncContribution) + '</b></span><span>BIC <b>' + money(d.bicContribution) + '</b></span><span>CFP + CCI <b>' + money(d.cfpContribution + d.cciContribution) + '</b></span>' + (state.vlEnabled ? '<span>Impôt <b>' + money(d.vlContribution) + '</b></span>' : '') + '<span>CA de ' + esc(monthName(due.period)) + '</span></div>'
        : '<div class="detail-row"><span>Synthèse de ' + esc(monthName(due.period)) + ' à saisir</span></div>') + '</div>';
   var vatCard = '<div class="card"><div class="card-head"><h3>TVA</h3><button class="switch' + (state.vatEnabled ? ' on' : '') + '" data-action="toggle-vat" aria-label="Activer la TVA" data-demo-lock></button></div>' +
     (state.vatEnabled
       ? '<div class="grid-2"><div><span class="label">À provisionner · ' + esc(m ? monthName(m.month) : '') + '</span><span class="value">' + n(m ? m.vatCollected : 0) + '</span></div><div><span class="label">Cumul ' + year + '</span><span class="value">' + n(C.yearSummary(state, year).vat) + '</span></div></div>'
       : '<span class="label">Franchise en base de TVA</span><span class="value" style="color:var(--faint)">Inactive</span>') + '</div>';
   var rates = '<div class="card"><div class="card-head"><h3>Taux</h3><button class="btn quiet" data-action="activities" data-demo-lock>Activités</button><button class="btn quiet" data-action="fiscal-settings" data-demo-lock>Réglages</button></div>' +
-    '<div class="facts"><div><span class="label">BNC</span><b>' + rate(state.bncTaxRate) + '</b></div><div><span class="label">BIC</span><b>' + rate(state.bicTaxRate) + '</b></div><div><span class="label">CFP + CCI</span><b>' + rate(state.cfpRate + state.cciRate) + '</b></div></div></div>';
-  var cols = 'minmax(110px,1.2fr) repeat(5,minmax(0,1fr))';
+    '<div class="facts"><div><span class="label">BNC</span><b>' + rate(state.bncTaxRate) + '</b></div><div><span class="label">BIC</span><b>' + rate(state.bicTaxRate) + '</b></div><div><span class="label">CFP + CCI</span><b>' + rate(state.cfpRate + state.cciRate) + '</b></div>' +
+    (state.vlEnabled ? '<div><span class="label">Impôt libératoire</span><b>' + rate(state.vlBncRate) + ' · ' + rate(state.vlBicRate) + '</b></div>' : '') + '</div></div>';
+  var vl = state.vlEnabled, cols = 'minmax(110px,1.2fr) repeat(' + (vl ? 6 : 5) + ',minmax(0,1fr))';
   var months = C.monthsOfYear(state, year);
-  var table = months.length ? '<div class="section-head"><h2>URSSAF ' + year + '</h2></div><div class="table"><div class="tr head" style="grid-template-columns:' + cols + '"><span>Mois</span><span class="r">BNC · ' + rate(state.bncTaxRate) + '</span><span class="r">BIC · ' + rate(state.bicTaxRate) + '</span><span class="r">CFP · ' + rate(state.cfpRate) + '</span><span class="r">CCI · ' + rate(state.cciRate) + '</span><span class="r">Total</span></div>' +
+  var table = months.length ? '<div class="section-head"><h2>URSSAF ' + year + '</h2></div><div class="table"><div class="tr head" style="grid-template-columns:' + cols + '"><span>Mois</span><span class="r">BNC · ' + rate(state.bncTaxRate) + '</span><span class="r">BIC · ' + rate(state.bicTaxRate) + '</span><span class="r">CFP · ' + rate(state.cfpRate) + '</span><span class="r">CCI · ' + rate(state.cciRate) + '</span>' + (vl ? '<span class="r">Impôt</span>' : '') + '<span class="r">Total</span></div>' +
     months.map(function (mm) {
       var t = C.calc(state, mm);
-      return '<div class="tr m-card" style="grid-template-columns:' + cols + '"><span class="strong">' + esc(monthName(mm.month)) + '</span><span class="r m-hide">' + money(t.bncContribution) + '<small>' + money0(mm.bnc) + '</small></span><span class="r m-hide">' + money(t.bicContribution) + '<small>' + money0(mm.bic) + '</small></span><span class="r m-hide">' + money(t.cfpContribution) + '</span><span class="r m-hide">' + money(t.cciContribution) + '</span><span class="r strong">' + money(t.urssaf) + '</span></div>';
-    }).join('') + '<div class="tr m-card" style="grid-template-columns:' + cols + ';background:var(--lav-2)"><span class="strong">Total ' + year + '</span><span class="m-hide"></span><span class="m-hide"></span><span class="m-hide"></span><span class="m-hide"></span><span class="r strong">' + money(C.yearSummary(state, year).urssaf) + '</span></div></div>' : '';
+      return '<div class="tr m-card" style="grid-template-columns:' + cols + '"><span class="strong">' + esc(monthName(mm.month)) + '</span><span class="r m-hide">' + money(t.bncContribution) + '<small>' + money0(mm.bnc) + '</small></span><span class="r m-hide">' + money(t.bicContribution) + '<small>' + money0(mm.bic) + '</small></span><span class="r m-hide">' + money(t.cfpContribution) + '</span><span class="r m-hide">' + money(t.cciContribution) + '</span>' + (vl ? '<span class="r m-hide">' + money(t.vlContribution) + '</span>' : '') + '<span class="r strong">' + money(t.urssaf) + '</span></div>';
+    }).join('') + '<div class="tr m-card" style="grid-template-columns:' + cols + ';background:var(--lav-2)"><span class="strong">Total ' + year + '</span><span class="m-hide"></span><span class="m-hide"></span><span class="m-hide"></span><span class="m-hide"></span>' + (vl ? '<span class="m-hide"></span>' : '') + '<span class="r strong">' + money(C.yearSummary(state, year).urssaf) + '</span></div></div>' : '';
   return '<div class="stack stagger">' + hero + '<div class="grid-2">' + vatCard + rates + '</div>' +
     '<div class="grid-2">' + (state.vatEnabled ? '' : gauge('Franchise TVA', C.threshold(state, year, state.vatThreshold), { year: year })) + gauge('Plafond micro-entreprise', C.threshold(state, year, state.microThreshold), { year: year }) + '</div>' +
     table + '</div>';
@@ -644,6 +645,8 @@ function openObjectives() {
 function openFiscalSettings() {
   var body = '<div class="group">URSSAF</div><div class="fields">' + field('bnc', 'Taux BNC (%)', state.bncTaxRate, { keepZero: true }) + field('bic', 'Taux BIC (%)', state.bicTaxRate, { keepZero: true }) +
     field('cfp', 'CFP (%)', state.cfpRate, { keepZero: true }) + field('cci', 'CCI / CMA (%)', state.cciRate, { keepZero: true }) +
+    FOSUI.segField('vl', 'Versement libératoire de l’impôt', [['1', 'Oui'], ['0', 'Non']], state.vlEnabled ? '1' : '0', true) +
+    field('vlBnc', 'Impôt BNC (%)', state.vlBncRate, { keepZero: true }) + field('vlBic', 'Impôt BIC (%)', state.vlBicRate, { keepZero: true }) +
     FOSUI.segField('lag', 'Prélèvement URSSAF', [[1, '1 mois après'], [2, '2 mois après'], [3, '3 mois après']], state.urssafLagMonths, true) + '</div>' +
     '<div class="group">Seuils</div><div class="fields">' + FOSUI.segField('activity', 'Activité TVA', [['services', 'Services'], ['sales', 'Vente'], ['custom', 'Autre']], state.vatActivity, true) +
     field('vatThreshold', 'Franchise TVA (€)', state.vatThreshold) + field('microThreshold', 'Plafond micro (€)', state.microThreshold, { full: true }) + '</div>';
@@ -655,6 +658,7 @@ function openFiscalSettings() {
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       state.bncTaxRate = val(form, 'bnc'); state.bicTaxRate = val(form, 'bic'); state.cfpRate = val(form, 'cfp'); state.cciRate = val(form, 'cci');
+      state.vlEnabled = form.elements.vl.value === '1'; state.vlBncRate = val(form, 'vlBnc'); state.vlBicRate = val(form, 'vlBic');
       state.urssafLagMonths = Number(form.elements.lag.value) || 2; state.vatActivity = form.elements.activity.value;
       if (val(form, 'vatThreshold') > 0) state.vatThreshold = val(form, 'vatThreshold');
       if (val(form, 'microThreshold') > 0) state.microThreshold = val(form, 'microThreshold');

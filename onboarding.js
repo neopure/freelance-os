@@ -103,7 +103,9 @@
 
   function apply(form) {
     var list = readActivities(form);
-    var hasBnc = !list.length || list.some(function (a) { return a.kind === 'bnc'; }), hasBic = list.some(function (a) { return a.kind === 'bic'; });
+    /* Sans activité renseignée, les taux déjà en place sont gardés. */
+    var hasBnc = list.length ? list.some(function (a) { return a.kind === 'bnc'; }) : state.bncTaxRate > 0 || !state.bicTaxRate;
+    var hasBic = list.length ? list.some(function (a) { return a.kind === 'bic'; }) : state.bicTaxRate > 0;
     applyActivities(list);
     /* Les taux ne sont remis à leur valeur type que si l'activité change : un taux ajusté à la main est conservé. */
     state.bncTaxRate = hasBnc ? (state.bncTaxRate > 0 ? state.bncTaxRate : RATES.bnc) : 0;

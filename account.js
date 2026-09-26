@@ -466,7 +466,7 @@
     paintStatus();
     var input = overlay.querySelector('input');
     overlay.addEventListener('click', function (event) { if (event.target === overlay) overlay.remove(); });
-    input.onchange = function () { if (input.files[0]) importFile(input.files[0]); };
+    input.onchange = function () { if (input.files[0]) { overlay.remove(); importFile(input.files[0]); } };
     overlay.querySelector('[data-act="sync"]').onclick = function () {
       var action = tokenValid(session()) ? (setMeta({ dirty: true }), push()) : signIn(false);
       action.catch(function (e) { notify(e.message); });

@@ -367,7 +367,7 @@ button:focus-visible,.picker:focus-visible{outline:2px solid rgba(184,101,238,.5
 .confirm h2{font-size:19px;margin-bottom:6px}
 .confirm p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
 .confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
-.confirm-modal{z-index:1100}
+.confirm-modal{z-index:100002}
 .btn.danger-solid{background:var(--red)}
 .btn.danger-solid:hover{background:#c9353a}
 @media (max-width:760px){.confirm{align-self:end}}
