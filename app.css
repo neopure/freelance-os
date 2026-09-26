@@ -691,3 +691,7 @@ body.apercu .topbar.scrolled{padding-top:10px}
 .act-sum.total{border-top:1.5px solid var(--line)}.act-sum.total b{font-size:17px}
 .act-sum.head span:first-child{font-weight:700}
 @media(max-width:560px){.act-sum{grid-template-columns:minmax(0,1fr) 88px 96px;gap:8px}}
+/* Le verre met les blocs en position relative : les fenêtres flottantes restent fixes à l'écran,
+   et le sélecteur de mois passe au-dessus du grand chiffre de l'accueil. */
+body.apercu .pop{position:fixed}
+body.apercu .top{position:relative;z-index:2}
