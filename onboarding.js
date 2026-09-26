@@ -39,7 +39,7 @@
       '.fos-ob-choice small{display:block;font-weight:500;color:#7a7288}' +
       '.fos-ob label.fos-ob-field{display:block;margin-bottom:12px;font-size:13px;font-weight:700;color:#5e5870}' +
       '.fos-ob-field input,.fos-ob-row input,.fos-ob-row select{width:100%;min-height:46px;margin-top:6px;padding:0 12px;border:1px solid #e1d8ea;border-radius:12px;font:inherit;font-size:16px;color:#17162a;background:#fff;box-sizing:border-box}' +
-      '.fos-ob-row{display:grid;grid-template-columns:1fr 100px 100px;gap:8px;align-items:center;margin-bottom:8px;font-size:14px;font-weight:700}.fos-ob-row input,.fos-ob-row select{margin:0}' +
+      '.fos-ob-row{display:grid;grid-template-columns:1fr 96px 116px;gap:8px;align-items:center;margin-bottom:8px;font-size:14px;font-weight:700}.fos-ob-row input,.fos-ob-row select{margin:0}' +
       '.fos-ob-nav{display:flex;gap:8px;margin-top:20px}.fos-ob-nav button{flex:1;min-height:48px;border:0;border-radius:14px;font-weight:800;font-size:15px;cursor:pointer;background:#f4eef9;color:#50368c}' +
       '.fos-ob-nav .primary{background:#b865ee;color:#fff}.fos-ob-skip{display:block;margin:12px auto 0;border:0;background:none;color:#8a8398;font-size:13px;font-weight:700;cursor:pointer}' +
       '@media(max-width:420px){.fos-ob-row{grid-template-columns:1fr 84px 96px}.fos-ob-row select{padding:0 8px}}';
@@ -58,7 +58,7 @@
       var f = fixedById['setup-' + c.key] || {};
       var scope = f.scope || c.scope;
       return '<div class="fos-ob-row"><span>' + esc(c.label) + '</span><input name="charge-' + c.key + '" inputmode="decimal" placeholder="0 €" value="' + (f.amount || '') + '">' +
-        '<select name="scope-' + c.key + '"><option value="pro"' + (scope === 'pro' ? ' selected' : '') + '>Pro</option><option value="perso"' + (scope === 'perso' ? ' selected' : '') + '>Perso</option></select></div>';
+        '<input type="hidden" name="scope-' + c.key + '" value="' + scope + '"><div class="segmented small" data-seg="scope-' + c.key + '"><button type="button" data-v="pro" class="' + (scope === 'pro' ? 'on' : '') + '">Pro</button><button type="button" data-v="perso" class="' + (scope === 'perso' ? 'on' : '') + '">Perso</button></div></div>';
     }).join('');
     var overlay = document.createElement('div');
     overlay.className = 'fos-ob';

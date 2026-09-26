@@ -57,7 +57,7 @@
     var status = data.google.status === 'syncing' ? 'Synchronisation…' : data.google.error ? esc(data.google.error)
       : data.google.lastSyncedAt ? (data.google.email ? esc(data.google.email) + '<br>' : '') + data.google.lastCount + ' date' + (data.google.lastCount > 1 ? 's' : '') + ' · ' + new Date(data.google.lastSyncedAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }) : 'Non connecté';
     return '<div class="split stagger"><div class="stack">' +
-      '<div class="card"><div style="display:flex;gap:8px"><select class="month-select" data-agenda="month" style="flex:1" aria-label="Mois">' + months().map(function (k) { return '<option value="' + k + '"' + (k === key ? ' selected' : '') + '>' + monthName(k) + '</option>'; }).join('') + '</select>' +
+      '<div class="card"><div style="display:flex;gap:8px"><button type="button" class="month-select" data-agenda-act="month" style="flex:1">' + esc(monthName(key)) + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></button>' +
         '<button class="btn" data-agenda-act="new" data-demo-lock>' + icon('plus') + '<span>Ajouter</span></button></div></div>' +
       '<div class="grid-3">' +
         kpi('Prévu · ' + monthOnly(key), n(total), list.length + ' date' + (list.length > 1 ? 's' : '') + (list.length ? ' · moy. ' + money0(avg) : '')) +
@@ -86,7 +86,7 @@
     var e = existing || { date: data.activeMonth + '-01', title: '', amount: '' };
     var body = '<div class="fields">' +
       '<div class="field full"><label for="ev-title">Prestation</label><input id="ev-title" name="title" type="text" value="' + esc(e.title) + '" placeholder="Mariage, DJ set…" required></div>' +
-      '<div class="field"><label for="ev-date">Date</label><input id="ev-date" name="date" type="date" value="' + esc(e.date) + '" required></div>' +
+      FOSUI.dateField('date', 'Date', e.date) +
       '<div class="field"><label for="ev-amount">Montant</label><input id="ev-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" value="' + esc(e.amount || '') + '" placeholder="0"></div></div>';
     var foot = '<span class="preview"></span>' + (existing ? '<button type="button" class="btn danger" data-delete>Supprimer</button>' : '') + '<button class="btn" type="submit">Enregistrer</button>';
     openSheet(existing ? 'Modifier la date' : 'Nouvelle date', body, foot, function (form) {
@@ -186,10 +186,12 @@
   function reset() {
     var w = windowKeys();
     var removable = data.events.filter(function (e) { var k = String(e.date || '').slice(0, 7); return e.source !== 'manual' && k >= w.startKey && k < w.endKey; });
-    if (removable.length && !confirm(removable.length + ' date(s) Google seront remplacées par la version actuelle de ton agenda. Tes dates ajoutées à la main restent.')) return;
+    (removable.length ? FOSUI.confirm('Réimporter Google Agenda ?', removable.length + ' date(s) seront remplacées par la version actuelle. Tes dates ajoutées à la main restent.', 'Réimporter') : Promise.resolve(true)).then(function (ok) {
+    if (!ok) return;
     data.events = data.events.filter(function (e) { return removable.indexOf(e) === -1; });
     data.google = Object.assign({}, data.google, { lastSyncedAt: '', lastCount: 0, error: '' });
     save(); connect();
+    });
   }
 
   /* ---------- Évènements ---------- */
@@ -198,6 +200,7 @@
     var act = el.dataset.agendaAct;
     if (act === 'new') openEvent(null);
     else if (act === 'edit') openEvent(data.events.find(function (x) { return x.id === el.dataset.id; }));
+    else if (act === 'month') FOSUI.pickMonth(el, { value: data.activeMonth, allowed: function (k) { return months().indexOf(k) !== -1; }, onPick: function (k) { data.activeMonth = k; save(); rerender(); } });
     else if (act === 'pick') { data.activeMonth = el.dataset.key; save(); rerender(); }
     else if (act === 'sync') connect();
     else if (act === 'reset') reset();

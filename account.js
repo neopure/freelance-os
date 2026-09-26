@@ -202,6 +202,10 @@
       throw error;
     });
   }
+  function ask(title, text, ok) {
+    return window.FOSUI ? window.FOSUI.confirm(title, text, ok, true) : Promise.resolve(window.confirm(title + ' ' + text));
+  }
+  function notify(text) { if (window.FOSUI && typeof toast === 'function') toast(text); else window.alert(text); }
   function signOut() {
     var done = function () {
       clearLocalData();
@@ -212,11 +216,11 @@
     };
     if (!meta().dirty) return done();
     if (!tokenValid(session())) {
-      if (window.confirm('Des modifications ne sont pas encore dans ton Drive. Te déconnecter les effacera de cet appareil. Continuer ?')) done();
+      ask('Te déconnecter ?', 'Des modifications ne sont pas encore dans ton Drive : elles seront effacées de cet appareil.', 'Me déconnecter').then(function (ok) { if (ok) done(); });
       return;
     }
     push().then(done, function () {
-      if (window.confirm('La sauvegarde Drive a échoué. Te déconnecter effacera les dernières modifications. Continuer ?')) done();
+      ask('Sauvegarde Drive impossible', 'Te déconnecter effacera les dernières modifications de cet appareil.', 'Me déconnecter').then(function (ok) { if (ok) done(); });
     });
   }
   function expire() {
@@ -310,16 +314,18 @@
     var reader = new FileReader();
     reader.onload = function () {
       var payload;
-      try { payload = JSON.parse(reader.result); } catch (_) { return window.alert('Ce fichier n’est pas une sauvegarde Freelance OS.'); }
-      if (!isUseful(payload)) return window.alert('Ce fichier ne contient aucune donnée Freelance OS.');
-      if (!window.confirm('Les données de ce compte seront remplacées par ce fichier. Une archive de la version actuelle est gardée dans ton Drive. Continuer ?')) return;
+      try { payload = JSON.parse(reader.result); } catch (_) { return notify('Ce fichier n’est pas une sauvegarde Freelance OS.'); }
+      if (!isUseful(payload)) return notify('Ce fichier ne contient aucune donnée Freelance OS.');
+      ask('Importer ce fichier ?', 'Les données de ce compte seront remplacées. Une archive de la version actuelle est gardée dans ton Drive.', 'Importer').then(function (ok) {
+      if (!ok) return;
       var current = snapshot();
       (isUseful(current) && tokenValid(session()) ? archive(current) : Promise.resolve()).then(function () {
         restore(payload);
         setMeta({ dirty: true });
         return push();
       }).then(function () { window.location.reload(); }, function () { window.location.reload(); });
-    };
+          });
+};
     reader.readAsText(file);
   }
 
@@ -409,7 +415,7 @@
       banner = document.createElement('div');
       banner.className = 'fos-banner';
       banner.innerHTML = '<span>Session Google expirée</span><button type="button">Se reconnecter</button>';
-      banner.querySelector('button').onclick = function () { signIn(false).catch(function (e) { window.alert(e.message); }); };
+      banner.querySelector('button').onclick = function () { signIn(false).catch(function (e) { notify(e.message); }); };
       document.body.appendChild(banner);
     } else if (!expired && banner) banner.remove();
   }
@@ -430,7 +436,7 @@
     input.onchange = function () { if (input.files[0]) importFile(input.files[0]); };
     overlay.querySelector('[data-act="sync"]').onclick = function () {
       var action = tokenValid(session()) ? (setMeta({ dirty: true }), push()) : signIn(false);
-      action.catch(function (e) { window.alert(e.message); });
+      action.catch(function (e) { notify(e.message); });
     };
     var demo = overlay.querySelector('[data-act="demo"]');
     if (demo) demo.onclick = function () { overlay.remove(); window.FreelanceOS.toggleDemo(); };

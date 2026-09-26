@@ -110,8 +110,7 @@ function render() {
   q('#title').textContent = TITLES[ui.view] || greeting();
   var picker = q('#month-picker');
   picker.hidden = ui.view !== 'dashboard' || state.months.length < 2;
-  picker.innerHTML = state.months.map(function (m) { return '<option value="' + m.id + '">' + monthName(m.month) + '</option>'; }).join('');
-  if (state.dashboardMonth) picker.value = state.dashboardMonth;
+  picker.innerHTML = esc(monthName(state.dashboardMonth || '')) + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>';
   var root = q('#view');
   root.className = 'view on' + (ui.animate && !REDUCED ? ' enter' : '');
   root.innerHTML = RENDERERS[ui.view]();
@@ -414,7 +413,7 @@ function openMonth(id) {
   var latest = state.months[0];
   var nextKey = latest ? C.monthKey(new Date(+latest.month.slice(0, 4), +latest.month.slice(5, 7), 1)) : C.monthKey();
   var m = existing || C.emptyMonth(nextKey);
-  var body = '<div class="fields">' + field('month', 'Mois', m.month, { type: 'month', full: true, required: true }) + '</div>' +
+  var body = '<div class="fields">' + FOSUI.monthField('month', 'Mois', m.month, true) + '</div>' +
     '<div class="group">Recettes</div><div class="fields">' + field('bnc', 'CA BNC', m.bnc) + field('bic', 'CA BIC / DJ', m.bic) + field('cdd', 'Salaire / CDD', m.cdd) + field('sacem', 'Droits SACEM', m.sacem) + '</div>' +
     '<div class="group">Dépenses du mois</div><div class="fields">' + field('variable', 'Dépenses pro', m.variable) + field('invest', 'Achat / investissement pro', m.invest) + field('personal', 'Dépenses perso', m.personal, { full: true }) + '</div>' +
     (state.vatEnabled ? '<div class="group">TVA</div><div class="fields">' + field('vatCollected', 'TVA à provisionner', m.vatCollected, { full: true }) + '</div>' : '') +
@@ -436,19 +435,23 @@ function openMonth(id) {
       var d = read();
       if (!/^\d{4}-\d{2}$/.test(d.month)) { form.elements.month.focus(); return; }
       var clash = state.months.find(function (x) { return x.id === d.id && x.id !== (existing && existing.id); });
-      if (clash && !confirm('Une synthèse existe déjà pour ' + monthName(d.month) + '. La remplacer ?')) return;
-      state.months = state.months.filter(function (x) { return x !== clash && x !== existing; });
-      state.months.push(d);
-      state.dashboardMonth = null; save();
-      state.dashboardMonth = state.months[0].id;
-      closeSheet(); ui.animate = true; render(); toast(monthName(d.month) + ' enregistré');
+      (clash ? FOSUI.confirm(monthName(d.month) + ' existe déjà', 'La synthèse enregistrée sera remplacée.', 'Remplacer', true) : Promise.resolve(true)).then(function (ok) {
+        if (!ok) return;
+        state.months = state.months.filter(function (x) { return x !== clash && x !== existing; });
+        state.months.push(d);
+        save();
+        state.dashboardMonth = state.months[0].id;
+        closeSheet(); ui.animate = true; render(); toast(monthName(d.month) + ' enregistré');
+      });
     });
     var del = q('[data-delete]', form);
     if (del) del.onclick = function () {
-      if (!confirm('Supprimer ' + monthName(m.month) + ' ?')) return;
-      state.months = state.months.filter(function (x) { return x !== existing; });
-      save(); state.dashboardMonth = state.months[0] ? state.months[0].id : null;
-      closeSheet(); render(); toast('Mois supprimé');
+      FOSUI.confirm('Supprimer ' + monthName(m.month) + ' ?', 'Cette synthèse sera effacée.', 'Supprimer', true).then(function (ok) {
+        if (!ok) return;
+        state.months = state.months.filter(function (x) { return x !== existing; });
+        save(); state.dashboardMonth = state.months[0] ? state.months[0].id : null;
+        closeSheet(); render(); toast('Mois supprimé');
+      });
     };
   });
 }
@@ -460,9 +463,9 @@ function openFixed(id) {
   var cats = CATEGORIES.indexOf(f.category) === -1 ? CATEGORIES.concat([f.category]) : CATEGORIES;
   var body = '<div class="fields">' + field('label', 'Nom', f.label, { type: 'text', full: true, required: true, placeholder: 'Ex. Adobe' }) +
     field('amount', 'Montant', f.amount) +
-    '<div class="field"><label for="f-frequency">Fréquence</label><select id="f-frequency" name="frequency">' + opt([['monthly', 'Mensuelle'], ['annual', 'Annuelle']], f.frequency) + '</select></div>' +
-    '<div class="field"><label for="f-category">Catégorie</label><select id="f-category" name="category">' + opt(cats.map(function (c) { return [c, c]; }), f.category) + '</select></div>' +
-    '<div class="field"><label for="f-scope">Type</label><select id="f-scope" name="scope">' + opt([['pro', 'Professionnelle'], ['perso', 'Personnelle']], f.scope) + '</select></div></div>';
+    FOSUI.segField('frequency', 'Fréquence', [['monthly', 'Mensuelle'], ['annual', 'Annuelle']], f.frequency) +
+    FOSUI.segField('scope', 'Type', [['pro', 'Pro'], ['perso', 'Perso']], f.scope) +
+    '<div class="field full"><label>Catégorie</label><input type="hidden" name="category" value="' + esc(f.category) + '"><div class="segmented wrap" data-seg="category">' + cats.map(function (c) { return '<button type="button" data-v="' + esc(c) + '" class="' + (c === f.category ? 'on' : '') + '">' + esc(c) + '</button>'; }).join('') + '</div></div></div>';
   var foot = '<span class="preview"></span>' + (existing ? '<button type="button" class="btn danger" data-delete>Supprimer</button>' : '') + '<button class="btn" type="submit">Enregistrer</button>';
   openSheet(existing ? 'Modifier la charge' : 'Nouvelle charge', body, foot, function (form) {
     form.addEventListener('submit', function (e) {
@@ -475,9 +478,11 @@ function openFixed(id) {
     });
     var del = q('[data-delete]', form);
     if (del) del.onclick = function () {
-      if (!confirm('Supprimer « ' + f.label + ' » ?')) return;
-      state.fixed = state.fixed.filter(function (x) { return x !== existing; });
-      save(); closeSheet(); render(); toast('Charge supprimée');
+      FOSUI.confirm('Supprimer « ' + f.label + ' » ?', '', 'Supprimer', true).then(function (ok) {
+        if (!ok) return;
+        state.fixed = state.fixed.filter(function (x) { return x !== existing; });
+        save(); closeSheet(); render(); toast('Charge supprimée');
+      });
     };
   });
 }
@@ -500,11 +505,10 @@ function openObjectives() {
 function openFiscalSettings() {
   var body = '<div class="group">URSSAF</div><div class="fields">' + field('bnc', 'Taux BNC (%)', state.bncTaxRate, { keepZero: true }) + field('bic', 'Taux BIC (%)', state.bicTaxRate, { keepZero: true }) +
     field('cfp', 'CFP (%)', state.cfpRate, { keepZero: true }) + field('cci', 'CCI / CMA (%)', state.cciRate, { keepZero: true }) +
-    '<div class="field full"><label for="f-lag">Prélèvement</label><select id="f-lag" name="lag">' + [1, 2, 3].map(function (i) { return '<option value="' + i + '"' + (state.urssafLagMonths === i ? ' selected' : '') + '>' + i + ' mois après le CA</option>'; }).join('') + '</select></div></div>' +
-    '<div class="group">Seuils</div><div class="fields"><div class="field"><label for="f-activity">Activité TVA</label><select id="f-activity" name="activity"><option value="services">Prestations de services</option><option value="sales">Vente de biens</option><option value="custom">Personnalisé</option></select></div>' +
+    FOSUI.segField('lag', 'Prélèvement URSSAF', [[1, '1 mois après'], [2, '2 mois après'], [3, '3 mois après']], state.urssafLagMonths, true) + '</div>' +
+    '<div class="group">Seuils</div><div class="fields">' + FOSUI.segField('activity', 'Activité TVA', [['services', 'Services'], ['sales', 'Vente'], ['custom', 'Autre']], state.vatActivity, true) +
     field('vatThreshold', 'Franchise TVA (€)', state.vatThreshold) + field('microThreshold', 'Plafond micro (€)', state.microThreshold, { full: true }) + '</div>';
   openSheet('Réglages fiscaux', body, '<span class="preview"></span><button class="btn" type="submit">Enregistrer</button>', function (form) {
-    form.elements.activity.value = state.vatActivity;
     form.elements.activity.addEventListener('change', function () {
       if (this.value === 'services') form.elements.vatThreshold.value = 37500;
       if (this.value === 'sales') form.elements.vatThreshold.value = 85000;
@@ -559,7 +563,7 @@ function importBricks() {
   input.type = 'file'; input.accept = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   input.onchange = function () {
     var file = input.files[0]; if (!file) return;
-    if (!/\.xlsx$/i.test(file.name)) { alert('Choisis l’export Bricks au format .xlsx.'); return; }
+    if (!/\.xlsx$/i.test(file.name)) { toast('Choisis l’export Bricks au format .xlsx'); return; }
     (window.XLSX ? Promise.resolve() : loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js')).then(function () {
       return file.arrayBuffer();
     }).then(function (buffer) {
@@ -569,7 +573,7 @@ function importBricks() {
       var rows = window.XLSX.utils.sheet_to_json(wb.Sheets[sheet], { header: 1, defval: '', raw: false });
       state.bricks = C.parseBricksRows(rows, state.bricks, monthName);
       save(); ui.animate = true; render(); toast('Export Bricks importé');
-    }).catch(function (err) { alert(err.message); });
+    }).catch(function (err) { toast(err.message); });
   };
   input.click();
 }
@@ -587,6 +591,11 @@ var ACTIONS = {
   'import-bricks': importBricks,
   'bricks-horizon': function (el) { state.bricks.projectionHorizon = Number(el.dataset.h); save(); render(); },
   'demo-off': function () { setDemo(false); },
+  'pick-dashboard-month': function (el) {
+    FOSUI.pickMonth(el, { value: state.dashboardMonth, today: false,
+      allowed: function (k) { return state.months.some(function (m) { return m.id === k; }); },
+      onPick: function (k) { state.dashboardMonth = k; ui.animate = true; render(); } });
+  },
   'more': function () {
     openSheet('Plus', '<div class="more-list">' + ['fixed', 'fiscal', 'forecast', 'bricks'].map(function (id) {
       var v = VIEWS.find(function (x) { return x.id === id; });
@@ -598,7 +607,6 @@ function setDemo(on) { state.demoMode = !!on; save(); ui.animate = true; render(
 window.FreelanceOS = { toggleDemo: function () { setDemo(!state.demoMode); }, isDemo: function () { return !!state.demoMode; } };
 
 document.addEventListener('change', function (e) {
-  if (e.target.id === 'month-picker') { state.dashboardMonth = e.target.value; ui.animate = true; render(); }
   if (e.target.matches('[data-action=bricks-rate]')) {
     var v = Number(e.target.value);
     if (v >= 0 && v <= 100) { state.bricks.expectedRate = v; save(); render(); }
