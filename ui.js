@@ -36,7 +36,8 @@
     document.body.appendChild(el);
     if (!mobile()) {
       var r = anchor.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
-      var left = Math.min(Math.max(8, r.left), window.innerWidth - w - 8);
+      /* Centrée sous le bouton, sans sortir de l'écran. */
+      var left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
       var top = r.bottom + 6;
       if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
       el.style.left = left + 'px'; el.style.top = top + 'px';

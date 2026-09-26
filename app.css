@@ -695,3 +695,4 @@ body.apercu .topbar.scrolled{padding-top:10px}
    et le sélecteur de mois passe au-dessus du grand chiffre de l'accueil. */
 body.apercu .pop{position:fixed}
 body.apercu .top{position:relative;z-index:2}
+body.apercu .pop-months button.on,body.apercu .pop-days button.on{background:var(--purple)!important;color:#fff!important;box-shadow:0 6px 16px rgba(184,101,238,.35)}
