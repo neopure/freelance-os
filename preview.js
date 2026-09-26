@@ -1,8 +1,8 @@
-/* Freelance OS · propositions d'Accueil et de « Mes mois ».
-   Actives seulement avec ?apercu dans l'adresse, pour les essayer sur ses vraies données. */
+/* Freelance OS · design principal : menu en haut, verre, chiffre clé de chaque page.
+   ?classique dans l'adresse rouvre l'ancienne mise en page, le temps de la transition. */
 (function () {
   'use strict';
-  if (!/[?&]apercu\b/.test(location.search)) return;
+  if (/[?&]classique\b/.test(location.search)) return;
 
   function nextEvents(limit) {
     var data = {};
