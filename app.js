@@ -132,7 +132,7 @@ function afterRender(root) {
     var start = null;
     var step = function (ts) {
       if (start === null) start = ts;
-      var t = Math.min(1, (ts - start) / 700);
+      var t = Math.min(1, (ts - start) / 350);
       show(target * ease(t));
       if (t < 1) requestAnimationFrame(step);
     };
