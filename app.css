@@ -678,3 +678,8 @@ body.apercu .topbar.scrolled{padding-top:10px}
 .acts-note+.act-avg{border-top:0}
 .act-avg-fig{text-align:right;white-space:nowrap}.act-avg-fig b{font-size:22px;letter-spacing:-.02em}.act-avg-fig small{margin-left:4px;color:var(--muted);font-size:12px;font-weight:700}
 .act-avg-meta{grid-column:1/-1;color:var(--muted);font-size:12.5px;font-weight:600}
+
+/* Case déclarée modifiable pour un mois */
+.kind-toggle{border:0;cursor:pointer;font:inherit;font-size:11px;font-weight:800}
+.kind-toggle:hover{filter:brightness(.95);box-shadow:0 0 0 2px rgba(155,69,224,.18)}
+.kind-toggle.moved{box-shadow:0 0 0 1.5px currentColor}

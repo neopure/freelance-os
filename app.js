@@ -461,11 +461,13 @@ function openMonth(id) {
         d.split = {};
         state.activities.forEach(function (a) { if (val(form, 'act-' + a.id)) d.split[a.id] = val(form, 'act-' + a.id); });
         Object.keys(C.KINDS).forEach(function (k) { if (val(form, 'rest-' + k)) d.split['~' + k] = val(form, 'rest-' + k); });
-        var t = C.splitTotals(state, d.split);
+        d.kinds = {};
+        state.activities.forEach(function (a) { var el = form.elements['kind-' + a.id]; if (el && el.value !== a.kind && d.split[a.id]) d.kinds[a.id] = el.value; });
+        var t = C.splitTotals(state, d.split, d.kinds);
         Object.keys(C.KINDS).forEach(function (k) { d[k] = t[k]; });
       } else {
         ['bnc', 'bic', 'cdd', 'sacem'].forEach(function (k) { d[k] = val(form, k); });
-        d.split = {};
+        d.split = {}; d.kinds = {};
       }
       d.vatCollected = state.vatEnabled ? val(form, 'vatCollected') : 0;
       d.vatDeduct = 0; d.other = 0; d.pocket = 0;
@@ -478,7 +480,23 @@ function openMonth(id) {
       if (sum) sum.innerHTML = Object.keys(C.KINDS).filter(function (k) { return d[k]; }).map(function (k) { return '<span class="kind k-' + k + '">' + C.KINDS[k] + '</span> ' + money(d[k]); }).join('<i></i>') || 'Aucune recette';
     };
     q('[data-acts]', form).onclick = function () { var back = existing ? existing.id : null; closeSheet(); openActivities(function () { openMonth(back); }); };
-    form.addEventListener('input', preview); preview();
+    /* Mois déjà déclaré : le « non détaillé » se vide au fur et à mesure qu'on répartit, sans toucher au total déclaré. */
+    var declared = {}; Object.keys(C.KINDS).forEach(function (k) { declared[k] = m[k]; });
+    var rebalance = function (e) {
+      if (e && e.target && /^rest-/.test(e.target.name || '')) return;
+      if (!state.activities.length) return;
+      var d = read(), alloc = C.splitTotals(state, Object.assign({}, d.split, { '~bnc': 0, '~bic': 0, '~cdd': 0, '~sacem': 0 }), d.kinds);
+      Object.keys(C.KINDS).forEach(function (k) { var el = form.elements['rest-' + k]; if (el) el.value = Math.max(0, Math.round((declared[k] - alloc[k]) * 100) / 100) || ''; });
+    };
+    form.addEventListener('click', function (e) {
+      var t = e.target.closest('[data-kind-for]'); if (!t) return;
+      e.preventDefault();
+      var input = form.elements['kind-' + t.dataset.kindFor], a = state.activities.find(function (x) { return x.id === t.dataset.kindFor; });
+      input.value = input.value === 'bnc' ? 'bic' : 'bnc';
+      t.textContent = C.KINDS[input.value]; t.className = 'kind k-' + input.value + ' kind-toggle' + (input.value !== a.kind ? ' moved' : '');
+      rebalance(); preview();
+    });
+    form.addEventListener('input', function (e) { rebalance(e); preview(); }); preview();
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var d = read();
@@ -509,8 +527,15 @@ function openMonth(id) {
 function kindChip(k) { return '<span class="kind k-' + k + '">' + C.KINDS[k] + '</span>'; }
 function revenueFields(m) {
   if (!state.activities.length) return '<div class="fields">' + field('bnc', 'CA BNC', m.bnc) + field('bic', 'CA BIC', m.bic) + field('cdd', 'CDD / CDI', m.cdd) + field('sacem', 'Droits SACEM', m.sacem) + '</div>';
-  var split = m.split || {}, known = C.splitTotals(state, Object.assign({}, split, { '~bnc': 0, '~bic': 0, '~cdd': 0, '~sacem': 0 }));
-  var html = state.activities.map(function (a) { return field('act-' + a.id, esc(a.label) + kindChip(a.kind), C.num(split[a.id])); }).join('');
+  var split = m.split || {}, kinds = m.kinds || {}, known = C.splitTotals(state, Object.assign({}, split, { '~bnc': 0, '~bic': 0, '~cdd': 0, '~sacem': 0 }), kinds);
+  var html = state.activities.map(function (a) {
+    var k = kinds[a.id] || a.kind;
+    /* BNC et BIC : un clic sur la pastille change la case déclarée pour ce mois seulement. */
+    var chip = a.kind === 'bnc' || a.kind === 'bic'
+      ? '<button type="button" class="kind k-' + k + ' kind-toggle' + (k !== a.kind ? ' moved' : '') + '" data-kind-for="' + a.id + '" title="Case déclarée ce mois-ci">' + C.KINDS[k] + '</button>'
+      : kindChip(a.kind);
+    return field('act-' + a.id, esc(a.label) + chip + '<input type="hidden" name="kind-' + a.id + '" value="' + k + '">', C.num(split[a.id]));
+  }).join('');
   /* Une somme saisie avant le détail par activité reste visible, rattachée à sa case. */
   Object.keys(C.KINDS).forEach(function (k) {
     var rest = Math.round((m[k] - known[k]) * 100) / 100;
@@ -566,14 +591,20 @@ function applyActivities(list) {
   var ids = {}; list.forEach(function (a) { ids[a.id] = a; });
   state.months.forEach(function (m) {
     if (!m.split || !Object.keys(m.split).length) return;
+    m.kinds = m.kinds || {};
     state.activities.forEach(function (old) {
-      if (!ids[old.id] && m.split[old.id]) { m.split['~' + old.kind] = C.num(m.split['~' + old.kind]) + m.split[old.id]; delete m.split[old.id]; }
+      if (!m.split[old.id]) return;
+      var was = m.kinds[old.id] || old.kind;
+      if (!ids[old.id]) { m.split['~' + was] = C.num(m.split['~' + was]) + m.split[old.id]; delete m.split[old.id]; delete m.kinds[old.id]; return; }
+      /* Changer le type d'une activité vaut pour la suite : les mois passés gardent la case où ils ont été déclarés. */
+      if (ids[old.id].kind !== old.kind && !m.kinds[old.id]) m.kinds[old.id] = old.kind;
+      if (m.kinds[old.id] === ids[old.id].kind) delete m.kinds[old.id];
     });
   });
   state.activities = list;
   state.months.forEach(function (m) {
     if (!m.split || !Object.keys(m.split).length) return;
-    var t = C.splitTotals(state, m.split);
+    var t = C.splitTotals(state, m.split, m.kinds);
     Object.keys(C.KINDS).forEach(function (k) { m[k] = t[k]; });
   });
   if (list.some(function (a) { return a.kind === 'bnc'; }) && !state.bncTaxRate) state.bncTaxRate = 25.6;

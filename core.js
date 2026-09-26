@@ -62,6 +62,9 @@
       MONTH_FIELDS.forEach(function (k) { out[k] = num(m[k]); });
       out.split = {};
       if (m.split && typeof m.split === 'object') Object.keys(m.split).forEach(function (k) { if (num(m.split[k])) out.split[k] = num(m.split[k]); });
+      /* Case réellement déclarée ce mois-là, quand elle diffère du type habituel de l'activité. */
+      out.kinds = {};
+      if (m.kinds && typeof m.kinds === 'object') Object.keys(m.kinds).forEach(function (k) { if (KINDS[m.kinds[k]]) out.kinds[k] = m.kinds[k]; });
       return out;
     });
     /* Ancienne saisie : « autres recettes » a été fusionné dans le CDD. */
@@ -119,9 +122,9 @@
     };
   }
   /* Montant saisi par activité ; « ~bnc » garde la part d'une case non rattachée à une activité. */
-  function splitTotals(state, split) {
+  function splitTotals(state, split, kinds) {
     var t = {}; Object.keys(KINDS).forEach(function (k) { t[k] = num(split['~' + k]); });
-    state.activities.forEach(function (a) { t[a.kind] += num(split[a.id]); });
+    state.activities.forEach(function (a) { t[(kinds && kinds[a.id]) || a.kind] += num(split[a.id]); });
     return t;
   }
   function activityTotals(state, months) {
