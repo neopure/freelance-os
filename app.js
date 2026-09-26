@@ -58,19 +58,19 @@ var ICONS = {
 function icon(name) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + ICONS[name] + '</svg>'; }
 
 var VIEWS = [
-  { id: 'dashboard', label: 'Accueil' },
-  { id: 'months', label: 'Mes mois' },
-  { id: 'fixed', label: 'Charges fixes' },
-  { id: 'fiscal', label: 'TVA & URSSAF' },
-  { id: 'forecast', label: 'Prévisions' },
-  { id: 'agenda', label: 'Agenda' },
-  { id: 'bricks', label: 'Patrimoine' }
+  { id: 'dashboard', label: 'Accueil', short: 'Accueil' },
+  { id: 'months', label: 'Mes mois', short: 'Mois' },
+  { id: 'fixed', label: 'Charges fixes', short: 'Charges' },
+  { id: 'fiscal', label: 'TVA & URSSAF', short: 'Fiscalité' },
+  { id: 'forecast', label: 'Prévisions', short: 'Prévisions' },
+  { id: 'agenda', label: 'Agenda', short: 'Agenda' },
+  { id: 'bricks', label: 'Patrimoine', short: 'Patrimoine' }
 ];
 
 /* ---------- Coquille ---------- */
 function mountShell() {
   q('#nav').innerHTML = VIEWS.map(function (v) {
-    return '<button type="button" data-view="' + v.id + '">' + icon(v.id) + '<span>' + v.label + '</span></button>';
+    return '<button type="button" data-view="' + v.id + '" title="' + v.label + '">' + icon(v.id) + '<span class="l-full">' + v.label + '</span><span class="l-short">' + v.short + '</span></button>';
   }).join('');
   q('#tabbar').innerHTML =
     '<button type="button" data-view="dashboard">' + icon('dashboard') + 'Accueil</button>' +

@@ -78,7 +78,7 @@
         (data.rules.length ? data.rules.map(function (r) {
           return '<div class="rule"><input value="' + esc(r.keyword) + '" data-rule="' + esc(r.id) + '" data-k="keyword" placeholder="mariage" aria-label="Mot-clé"><input type="number" min="0" step="1" value="' + (Number(r.amount) || '') + '" data-rule="' + esc(r.id) + '" data-k="amount" placeholder="0 €" aria-label="Montant"><button class="icon-btn" data-agenda-act="del-rule" data-id="' + esc(r.id) + '" aria-label="Supprimer">' + icon('trash') + '</button></div>';
         }).join('') : '<p class="note" style="margin:0 0 4px">Ex. « mariage » → 900 €</p>') +
-        '<div class="field" style="margin-top:14px"><label for="agenda-goal">Objectif mensuel de l’agenda</label><input id="agenda-goal" type="number" min="0" step="50" data-agenda="goal" value="' + (data.forecastGoal || '') + '" placeholder="' + (window.state && state.monthlyGoal ? state.monthlyGoal : 0) + '"></div></div>' +
+        '<div class="field" style="margin-top:14px"><label for="agenda-goal">Objectif mensuel de l’agenda</label><input id="agenda-goal" type="number" min="0" step="50" data-agenda="goal" value="' + (data.forecastGoal || '') + '" placeholder="' + (window.state && state.monthlyGoal ? Math.round(state.monthlyGoal) : 0) + '"></div></div>' +
       '</div></div>';
   }
 

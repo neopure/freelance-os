@@ -509,3 +509,87 @@ button:focus-visible,.picker:focus-visible{outline:2px solid rgba(184,101,238,.5
   .m-stats b{font-size:16px}
   .modules{grid-template-columns:1fr}
 }
+
+/* =========================================================
+   Aperçu : menu en haut, pages aérées, effet « liquid glass »
+   ========================================================= */
+body.apercu{background:#f4f0fa}
+/* Fond vivant sous le verre : halos colorés qui dérivent lentement. */
+body.apercu::before{content:"";position:fixed;inset:-20vmax;z-index:-2;pointer-events:none;
+  background:radial-gradient(38vmax 30vmax at 12% 18%,rgba(184,101,238,.34),transparent 70%),
+             radial-gradient(34vmax 28vmax at 88% 12%,rgba(53,242,242,.28),transparent 70%),
+             radial-gradient(40vmax 32vmax at 70% 88%,rgba(255,138,196,.22),transparent 70%),
+             radial-gradient(30vmax 26vmax at 18% 92%,rgba(120,120,255,.18),transparent 70%);
+  animation:bgdrift 28s ease-in-out infinite alternate}
+@keyframes bgdrift{to{transform:translate3d(3vmax,-2vmax,0) rotate(6deg) scale(1.05)}}
+body.apercu .side{display:none}
+body.apercu .shell{display:block}
+body.apercu main{max-width:1180px;margin:0 auto;padding:22px 28px 70px}
+body.apercu .top{justify-content:center;min-height:0;margin-bottom:0}
+body.apercu .top h1{display:none}
+
+/* Verre : translucide, flou, reflet en haut, liseré lumineux. */
+body.apercu .card,body.apercu .module,body.apercu .kpi,body.apercu .table,body.apercu .strip,body.apercu .months-sum>div,
+body.apercu .topbar-in,body.apercu .sheet,body.apercu .pop,body.apercu .month-select,body.apercu .btn.quiet,body.apercu .shortcut,body.apercu .fos-account-trigger{
+  position:relative;background:linear-gradient(145deg,rgba(255,255,255,.72),rgba(255,255,255,.42));
+  -webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);
+  border:1px solid rgba(255,255,255,.75);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(255,255,255,.3),0 12px 34px rgba(70,35,120,.10)}
+body.apercu .card::before,body.apercu .module::before,body.apercu .kpi::before,body.apercu .table::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(170deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,0) 38%)}
+body.apercu .table{overflow:hidden}
+body.apercu .tr.head,body.apercu .facts div,body.apercu .segmented,body.apercu .pop-months button,body.apercu .pop-nav{background:rgba(255,255,255,.45)}
+body.apercu .tr{border-top-color:rgba(120,90,160,.10)}
+body.apercu .tr.click:hover,body.apercu .mrow:hover,body.apercu .up-item:hover{background:rgba(255,255,255,.55)}
+body.apercu .modal{background:rgba(30,20,55,.28);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+body.apercu .module.urgent{background:linear-gradient(145deg,rgba(255,255,255,.75),rgba(255,226,228,.6));border-color:rgba(245,181,184,.9)}
+body.apercu .kpi.b,body.apercu .card.b{background:linear-gradient(145deg,rgba(255,255,255,.75),rgba(255,236,224,.55));border-color:rgba(255,217,196,.9)}
+body.apercu .hero,body.apercu .proj{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 16px 40px rgba(80,40,140,.22)}
+
+/* Barre de menu flottante. */
+.topbar{display:none}
+body.apercu .topbar{display:block;position:sticky;top:0;z-index:700;padding:14px 20px 0}
+.topbar-in{display:flex;align-items:center;gap:14px;max-width:1240px;margin:0 auto;padding:8px 8px 8px 16px;border-radius:22px;transition:box-shadow .25s}
+.topbar.scrolled .topbar-in{box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 16px 40px rgba(70,35,120,.16)}
+.topbar .brand{padding:0;color:var(--ink);font-size:16px;white-space:nowrap}
+.topbar .brand span{color:var(--purple-strong)}
+.topbar .brand img{width:28px;height:28px}
+.topbar .nav{display:flex;flex:1;justify-content:center;gap:2px}
+.topbar .nav button{height:38px;padding:0 12px;border-radius:12px;color:var(--muted);font-size:13.5px;gap:8px}
+.topbar .nav button:hover{background:rgba(255,255,255,.6);color:var(--ink)}
+.topbar .nav button.on{background:var(--ink);color:#fff;box-shadow:0 6px 16px rgba(21,22,38,.25)}
+.topbar .nav button.on svg{color:var(--cyan)}
+.topbar .nav svg{width:17px;height:17px;color:var(--purple)}
+.topbar .nav button[data-view=bricks] svg{color:var(--bricks)}
+.topbar .top-actions{margin-left:auto}
+.topbar .btn.add{height:40px}
+@media (max-width:1280px){.topbar .nav button span{display:none}.topbar .nav button.on span{display:inline}}
+@media (max-width:1000px){.topbar .shortcuts{display:none}}
+
+/* Pages : chiffre clé posé sur le fond. */
+.m-action{margin-top:18px}
+.majestic.urgent .m-big{background:linear-gradient(100deg,#b3262b,var(--red));-webkit-background-clip:text;background-clip:text}
+.majestic.urgent::before{background:radial-gradient(closest-side,rgba(229,72,77,.22),transparent 72%)}
+.majestic.bricks .m-big{background:linear-gradient(100deg,#e2521a,var(--bricks-2));-webkit-background-clip:text;background-clip:text}
+.majestic.bricks::before{background:radial-gradient(closest-side,rgba(255,106,43,.22),transparent 72%),radial-gradient(closest-side at 70% 60%,rgba(255,180,90,.2),transparent 70%)}
+.countdown-inline{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:99px;background:rgba(229,72,77,.12);color:var(--red);font-weight:750}
+body.apercu .stack,body.apercu .home2{gap:20px}
+body.apercu .majestic+.stack{margin-top:6px}
+
+@media (max-width:760px){
+  body.apercu .topbar{padding:calc(8px + env(safe-area-inset-top)) 12px 0}
+  body.apercu .topbar .nav,body.apercu .topbar .shortcuts,body.apercu .topbar .btn.add{display:none}
+  body.apercu .topbar-in{padding:6px 6px 6px 12px}
+  body.apercu main{padding:12px 16px calc(96px + env(safe-area-inset-bottom))}
+  body.apercu .tabbar{background:rgba(21,22,38,.78);-webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%);border-top:1px solid rgba(255,255,255,.12)}
+}
+.nav .l-short{display:none}
+.topbar .nav .l-full{display:none}
+.topbar .nav .l-short{display:inline}
+.topbar .nav button{white-space:nowrap}
+@media (max-width:1280px){.topbar .nav button span{display:inline}}
+@media (max-width:1100px){.topbar .nav button .l-short{display:none}.topbar .nav button.on .l-short{display:inline}}
+/* Le reflet du verre passe derrière le contenu, jamais par-dessus. */
+body.apercu .card,body.apercu .module,body.apercu .kpi,body.apercu .table{isolation:isolate}
+body.apercu .card::before,body.apercu .module::before,body.apercu .kpi::before,body.apercu .table::before{z-index:-1}
+.topbar .nav button .l-full,.topbar .nav button.on .l-full{display:none!important}
