@@ -25,8 +25,10 @@
   function normalize(raw) {
     var s = raw && typeof raw === 'object' ? raw : {};
     s.goal = finite(s.goal, 0);
-    s.monthlyGoal = finite(s.monthlyGoal, Math.round(s.goal / 12));
-    s.growthTarget = finite(s.growthTarget, 10);
+    /* Un seul objectif : l'annuel. Le mensuel en découle toujours. */
+    s.monthlyGoal = finite(s.monthlyGoal, 0);
+    if (s.goal <= 0 && s.monthlyGoal > 0) s.goal = s.monthlyGoal * 12;
+    s.monthlyGoal = s.goal > 0 ? s.goal / 12 : 0;
     s.n1AnnualRevenue = finite(s.n1AnnualRevenue, 0);
     s.annualHistory = s.annualHistory && typeof s.annualHistory === 'object' ? s.annualHistory : {};
     s.vatThreshold = finite(s.vatThreshold, 37500);
@@ -170,15 +172,16 @@
     var projectedVat = avg(y.vat) * 12;
     var projectedUrssaf = avg(y.urssaf) * 12;
     var growthBase = state.n1AnnualRevenue || 0;
-    var growthTargetAmount = growthBase * (1 + state.growthTarget / 100);
     return {
       summary: y, remainingMonths: remainingMonths, projection: projection,
       goalPercent: state.goal ? projection / state.goal * 100 : 0,
       goalProgress: state.goal ? y.revenue / state.goal * 100 : 0,
       projectedExpenses: projectedExpenses, projectedVat: projectedVat, projectedUrssaf: projectedUrssaf,
       projectedNet: projection - projectedExpenses - projectedVat - projectedUrssaf,
-      growthBase: growthBase, growthTargetAmount: growthTargetAmount,
-      growthRequired: remainingMonths && growthBase ? Math.max(0, growthTargetAmount - y.revenue) / remainingMonths : 0,
+      growthBase: growthBase,
+      /* Croissance que représente l'objectif annuel par rapport à l'année précédente. */
+      goalGrowth: growthBase && state.goal ? (state.goal / growthBase - 1) * 100 : null,
+      projectedGrowth: growthBase ? (projection / growthBase - 1) * 100 : null,
       goalRequired: remainingMonths && state.goal ? Math.max(0, state.goal - y.revenue) / remainingMonths : 0
     };
   }

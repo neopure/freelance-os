@@ -464,3 +464,48 @@ button:focus-visible,.picker:focus-visible{outline:2px solid rgba(184,101,238,.5
 @media (min-width:1101px){.home-grid{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}}
 .curve{height:auto}
 @media (max-width:760px){.feed-txt b{white-space:normal}}
+
+/* ---------- Accueil (aperçu 2) : le texte flotte sur le fond ---------- */
+.home2{display:grid;gap:22px;grid-template-columns:minmax(0,1fr)}
+.majestic{position:relative;display:flex;flex-direction:column;align-items:center;padding:34px 0 30px;text-align:center;isolation:isolate}
+.majestic::before{content:"";position:absolute;z-index:-1;left:50%;top:48%;width:min(760px,120%);height:360px;transform:translate(-50%,-50%);background:radial-gradient(closest-side,rgba(184,101,238,.22),transparent 72%),radial-gradient(closest-side at 70% 60%,rgba(53,242,242,.18),transparent 70%);filter:blur(10px);animation:aura 12s ease-in-out infinite alternate}
+@keyframes aura{to{transform:translate(-50%,-50%) scale(1.08) rotate(4deg)}}
+.m-date{color:var(--faint);font-size:var(--fs-s);font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.m-line{margin:18px 0 0;color:var(--muted);font-size:21px;font-weight:600}
+.m-big{display:block;margin:6px 0 4px;font-size:clamp(52px,8vw,92px);font-weight:840;letter-spacing:-.05em;line-height:1;background:linear-gradient(100deg,var(--ink) 20%,var(--purple-strong) 70%,#1fc8d0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.m-soft{margin:8px 0 0;color:var(--muted);font-size:17px}
+.m-stats{display:flex;justify-content:center;flex-wrap:wrap;margin-top:26px}
+.m-stats span{padding:0 26px;border-left:1px solid var(--line)}
+.m-stats span:first-child{border-left:0}
+.m-stats i{display:block;color:var(--faint);font-size:var(--fs-xs);font-style:normal;font-weight:700}
+.m-stats b{display:block;margin-top:3px;font-size:19px;font-weight:780;font-variant-numeric:tabular-nums}
+.modules{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.module{display:flex;flex-direction:column;align-items:flex-start;padding:18px;border:1px solid var(--line);border-radius:var(--r-lg);background:#fff;box-shadow:var(--shadow);text-align:left;transition:transform .2s,box-shadow .2s,border-color .2s}
+@media (hover:hover){.module:hover{transform:translateY(-3px);border-color:#dccbee}}
+.module-kicker{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:var(--fs-s);font-weight:720}
+.module-kicker svg{width:16px;height:16px;color:var(--purple)}
+.module-big{display:block;margin-top:10px;font-size:28px;font-weight:810;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.module .track{width:100%;display:block}
+.module-line{display:block;margin-top:4px;font-size:14px;font-weight:600}
+.module-foot{display:block;margin-top:6px;color:var(--muted);font-size:var(--fs-xs)}
+.module.urgent{border-color:#f5b5b8;background:linear-gradient(180deg,#fff,var(--red-soft))}
+.module.urgent .module-kicker,.module.urgent .module-kicker svg,.module.urgent .module-big,.module.urgent strong{color:var(--red)}
+.module.warn .module-big{color:var(--amber)}
+.module.alert{border-color:#f5b5b8;background:var(--red-soft)}.module.alert .module-big{color:var(--red)}
+.upcoming{padding-bottom:12px}
+.up-item{display:flex;align-items:center;gap:12px;width:100%;padding:9px 6px;border:0;border-radius:14px;background:none;text-align:left}
+.up-item:hover{background:var(--lav-2)}
+.up-date{display:grid;place-items:center;flex:none;width:48px;height:48px;border-radius:14px;background:var(--teal-soft);color:var(--teal);font-size:10.5px;font-weight:750;line-height:1.05;text-transform:uppercase}
+.up-date b{font-size:18px}
+.up-txt{flex:1;min-width:0}
+.up-txt b{display:block;font-size:14px;font-weight:720;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.up-txt small{color:var(--muted);font-size:var(--fs-xs);text-transform:capitalize}
+.up-amt{color:var(--teal);font-weight:780;font-variant-numeric:tabular-nums}
+@media (max-width:760px){
+  .majestic{padding:14px 0 18px}
+  .m-line{font-size:17px;margin-top:12px}
+  .m-soft{font-size:15px}
+  .m-stats span{padding:0 14px}
+  .m-stats b{font-size:16px}
+  .modules{grid-template-columns:1fr}
+}

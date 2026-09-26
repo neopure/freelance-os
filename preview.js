@@ -48,69 +48,57 @@
     var m = currentMonth();
     if (!m) return RENDERERS_ORIGINAL.dashboard();
     var t = C.calc(state, m), year = m.month.slice(0, 4), y = C.yearSummary(state, year), due = C.urssafUpcoming(state);
-    var goal = state.monthlyGoal, goalPct = goal ? t.revenue / goal * 100 : 0;
     var vat = C.threshold(state, year, state.vatThreshold), f = C.forecast(state, year);
     var today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-    var items = [];
-    if (due.total > 0) items.push({ tone: due.days <= 7 ? 'red' : 'purple', icon: 'fiscal', view: 'fiscal', title: 'Prélèvement URSSAF ' + (due.days <= 1 ? 'demain' : 'dans ' + due.days + ' jours'), sub: '1er ' + monthOnly(due.paymentMonth) + ' · CA de ' + monthOnly(due.period), amount: money(due.total) });
-    else if (!due.item) items.push({ tone: 'purple', icon: 'months', action: 'new-month', title: 'Saisir ' + monthOnly(due.period), sub: 'Nécessaire pour l’URSSAF du 1er ' + monthOnly(due.paymentMonth), amount: '' });
-    if (!state.vatEnabled && vat.percent >= 80) items.push({ tone: vat.percent >= 100 ? 'red' : 'amber', icon: 'fiscal', view: 'fiscal', title: 'Franchise TVA à ' + pct(vat.percent, 0), sub: vat.crossed ? 'Seuil dépassé' : vat.crossingThisYear ? 'Passage estimé en ' + monthOnly(vat.crossing) : 'Reste ' + money0(vat.remaining), amount: '' });
-    nextEvents(2).forEach(function (e) {
-      items.push({ tone: 'teal', icon: 'agenda', view: 'agenda', title: e.title, sub: new Date(e.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }), amount: e.amount ? money(e.amount) : '' });
-    });
-    if (state.goal) items.push({ tone: 'purple', icon: 'forecast', view: 'forecast', title: 'Objectif ' + year + ' · ' + pct(f.goalProgress, 0) + ' réalisé', sub: money0(y.revenue) + ' sur ' + money0(state.goal), amount: '' });
-    return '<div class="home stagger">' +
-      '<section class="welcome">' +
-        '<div class="welcome-text"><span class="welcome-date">' + esc(today) + '</span>' +
-          '<p class="welcome-line">En ' + esc(monthOnly(m.month)) + ', il te reste</p>' +
-          '<span class="welcome-big">' + n(t.pocket) + '</span>' +
-          '<p class="welcome-line soft">dans ta poche, sur ' + money(t.revenue) + ' encaissés.</p>' +
-          '<div class="welcome-stats"><span><i>Charges</i><b>' + money0(t.expenses + t.personal) + '</b></span><span><i>URSSAF</i><b>' + money0(t.urssaf) + '</b></span><span><i>Part gardée</i><b>' + pct(t.revenue ? t.pocket / t.revenue * 100 : 0, 0) + '</b></span></div>' +
-        '</div>' +
-        (goal ? '<div class="welcome-ring">' + ring(goalPct) + '<div class="ring-label"><b>' + pct(goalPct, 0) + '</b><span>de l’objectif<br>' + money0(goal) + '</span></div></div>' : '') +
-      '</section>' +
-      '<div class="home-grid">' +
-        '<section class="card feed"><div class="card-head"><h3>À surveiller</h3></div>' +
-          (items.length ? items.map(function (it) {
-            var attr = it.view ? 'data-view="' + it.view + '"' : 'data-action="' + it.action + '"';
-            return '<button type="button" class="feed-item ' + it.tone + '" ' + attr + '><span class="feed-ico">' + icon(it.icon) + '</span><span class="feed-txt"><b>' + esc(it.title) + '</b><small>' + esc(it.sub) + '</small></span>' + (it.amount ? '<span class="feed-amt">' + it.amount + '</span>' : '') + '</button>';
-          }).join('') : '<p class="note">Rien à signaler.</p>') + '</section>' +
-        '<section class="card year"><div class="card-head"><h3>Ton année ' + year + '</h3><button class="link" data-view="months">Mes mois →</button></div>' +
-          '<div class="year-figs"><div><span class="label">Encaissé</span><b>' + n(y.revenue) + '</b></div><div><span class="label">Dans ta poche</span><b>' + n(y.pocket) + '</b></div><div><span class="label">Projeté fin d’année</span><b>' + money0(f.projection) + '</b></div></div>' +
-          yearCurve(year, goal) + '</section>' +
-      '</div></div>';
-  }
+    var urgent = due.total > 0 && due.days <= 7;
+    var events = nextEvents(3);
+    var level = vat.percent >= 100 ? 'alert' : vat.percent >= 80 ? 'warn' : '';
 
-  function monthsView() {
-    if (!state.months.length) return RENDERERS_ORIGINAL.months();
-    var years = C.years(state);
-    var year = window.__fosMonthsYear && years.indexOf(window.__fosMonthsYear) !== -1 ? window.__fosMonthsYear : years[0];
-    var y = C.yearSummary(state, year), goal = state.monthlyGoal;
-    var rows = C.monthsOfYear(state, year).map(function (m) {
-      var t = C.calc(state, m);
-      var parts = [['poche', Math.max(0, t.pocket), 'Dans ta poche'], ['urssaf', t.urssaf, 'URSSAF'], ['pro', t.expenses + Math.max(0, t.vat), 'Charges pro'], ['perso', t.personal, 'Charges perso']];
-      var total = Math.max(t.revenue, parts.reduce(function (s, p) { return s + p[1]; }, 0), 1);
-      var bar = parts.map(function (p) { return p[1] > 0 ? '<i class="seg-' + p[0] + '" data-w="' + (p[1] / total * 100) + '" title="' + p[2] + ' · ' + money(p[1]) + '"></i>' : ''; }).join('');
-      var status = goal ? (t.revenue >= goal ? '<span class="pill ok">Objectif atteint</span>' : '<span class="pill low">−' + money0(goal - t.revenue) + '</span>') : '';
-      return '<button type="button" class="mrow" data-action="edit-month" data-id="' + m.id + '" data-demo-lock>' +
-        '<span class="mrow-name"><b>' + esc(monthOnly(m.month)) + '</b>' + status + '</span>' +
-        '<span class="mrow-bar">' + bar + '</span>' +
-        '<span class="mrow-figs"><b class="' + (t.pocket < 0 ? 'neg' : '') + '">' + money(t.pocket) + '</b><small>sur ' + money0(t.revenue) + '</small></span></button>';
-    }).join('');
-    return '<div class="stack stagger">' +
-      (years.length > 1 ? '<div class="segmented" style="max-width:' + (years.length * 90) + 'px">' + years.map(function (yr) { return '<button type="button" data-months-year="' + yr + '" class="' + (yr === year ? 'on' : '') + '">' + yr + '</button>'; }).join('') + '</div>' : '') +
-      '<div class="months-sum"><div><span class="label">Encaissé ' + year + '</span><b>' + n(y.revenue) + '</b></div><div><span class="label">Dans ta poche</span><b class="pos">' + n(y.pocket) + '</b></div><div><span class="label">Moyenne / mois</span><b>' + n(y.average) + '</b></div><div><span class="label">URSSAF</span><b>' + n(y.urssaf) + '</b></div></div>' +
-      '<div class="card mlist"><div class="legend"><span><i class="seg-poche"></i>Dans ta poche</span><span><i class="seg-urssaf"></i>URSSAF</span><span><i class="seg-pro"></i>Charges pro</span><span><i class="seg-perso"></i>Charges perso</span></div>' + rows + '</div>' +
+    var urssaf = '<button type="button" class="module' + (urgent ? ' urgent' : '') + '" data-view="fiscal">' +
+      '<span class="module-kicker">' + icon('fiscal') + 'Prochain prélèvement URSSAF</span>' +
+      (due.item
+        ? '<b class="module-big">' + n(due.total) + '</b><span class="module-line">le 1er ' + esc(monthOnly(due.paymentMonth)) + ' · <strong>' + (due.days <= 1 ? 'demain' : 'dans ' + due.days + ' jours') + '</strong></span><span class="module-foot">Calculé sur ton CA de ' + esc(monthOnly(due.period)) + '</span>'
+        : '<b class="module-big">—</b><span class="module-line">Saisis ' + esc(monthOnly(due.period)) + ' pour le calculer</span>') + '</button>';
+
+    var tva = state.vatEnabled ? '' : '<button type="button" class="module ' + level + '" data-view="fiscal">' +
+      '<span class="module-kicker">' + icon('fiscal') + 'Franchise de TVA</span>' +
+      '<b class="module-big">' + n(vat.percent, 'pct') + '</b>' +
+      '<span class="track ' + level + '" style="margin:8px 0"><i data-w="' + Math.min(100, vat.percent) + '"></i></span>' +
+      '<span class="module-line">' + money0(vat.micro) + ' encaissés sur ' + money0(vat.limit) + '</span>' +
+      '<span class="module-foot">' + (vat.crossed ? 'Seuil dépassé : la TVA s’applique' : vat.crossingThisYear ? 'Au-delà, tu factures la TVA · passage estimé en ' + esc(monthOnly(vat.crossing)) : 'Au-delà, tu factures la TVA') + '</span></button>';
+
+    var goalMod = '<button type="button" class="module" data-view="forecast">' +
+      '<span class="module-kicker">' + icon('forecast') + 'Objectif ' + year + '</span>' +
+      (state.goal
+        ? '<b class="module-big">' + n(f.goalProgress, 'pct') + '</b><span class="track" style="margin:8px 0"><i data-w="' + Math.min(100, f.goalProgress) + '"></i></span>' +
+          '<span class="module-line">' + money0(y.revenue) + ' sur ' + money0(state.goal) + '</span><span class="module-foot">' + (f.goalRequired ? 'Reste ' + money0(f.goalRequired) + ' par mois' : 'Objectif atteint') + '</span>'
+        : '<b class="module-big">—</b><span class="module-line">Définis ton objectif annuel</span>') + '</button>';
+
+    var agenda = '<section class="card upcoming"><div class="card-head"><h3>À venir</h3><button class="link" data-view="agenda">Agenda →</button></div>' +
+      (events.length ? events.map(function (e) {
+        var d = new Date(e.date + 'T12:00:00');
+        return '<button type="button" class="up-item" data-view="agenda"><span class="up-date"><b>' + d.getDate() + '</b>' + esc(d.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')) + '</span><span class="up-txt"><b>' + esc(e.title) + '</b><small>' + esc(d.toLocaleDateString('fr-FR', { weekday: 'long' })) + '</small></span>' + (e.amount ? '<span class="up-amt">' + money(e.amount) + '</span>' : '') + '</button>';
+      }).join('') : '<p class="note" style="margin:0 0 6px">Aucune date prévue.</p><button class="btn quiet" data-agenda-act="new" data-demo-lock>' + icon('plus') + 'Ajouter une date</button>') + '</section>';
+
+    var yearMod = '<section class="card year"><div class="card-head"><h3>Ton année ' + year + '</h3><button class="link" data-view="months">Mes mois →</button></div>' +
+      '<div class="year-figs"><div><span class="label">Encaissé</span><b>' + n(y.revenue) + '</b></div><div><span class="label">Dans ta poche</span><b>' + n(y.pocket) + '</b></div><div><span class="label">Projeté fin d’année</span><b>' + money0(f.projection) + '</b></div></div>' +
+      yearCurve(year, state.monthlyGoal) + '</section>';
+
+    return '<div class="home2">' +
+      '<section class="majestic">' +
+        '<span class="m-date">' + esc(today) + '</span>' +
+        '<p class="m-line">En ' + esc(monthOnly(m.month)) + ', il te reste</p>' +
+        '<span class="m-big">' + n(t.pocket) + '</span>' +
+        '<p class="m-soft">dans ta poche, sur ' + money(t.revenue) + ' encaissés.</p>' +
+        '<div class="m-stats"><span><i>Charges</i><b>' + money0(t.expenses + t.personal) + '</b></span><span><i>URSSAF</i><b>' + money0(t.urssaf) + '</b></span><span><i>Part gardée</i><b>' + pct(t.revenue ? t.pocket / t.revenue * 100 : 0, 0) + '</b></span></div>' +
+      '</section>' +
+      '<div class="modules stagger">' + urssaf + tva + goalMod + '</div>' +
+      '<div class="home-grid stagger">' + agenda + yearMod + '</div>' +
     '</div>';
   }
 
-  var RENDERERS_ORIGINAL = { dashboard: RENDERERS.dashboard, months: RENDERERS.months };
+  var RENDERERS_ORIGINAL = { dashboard: RENDERERS.dashboard };
   RENDERERS.dashboard = home;
-  RENDERERS.months = monthsView;
-  document.addEventListener('click', function (e) {
-    var b = e.target.closest('[data-months-year]');
-    if (b) { window.__fosMonthsYear = b.dataset.monthsYear; ui.animate = true; render(); }
-  });
   document.body.classList.add('apercu');
   render();
 }());

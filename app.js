@@ -250,30 +250,30 @@ function viewDashboard() {
 /* ---------- Mes mois ---------- */
 function viewMonths() {
   if (!state.months.length) return emptyState('Aucun mois saisi pour l’instant', '<button class="btn" data-action="new-month" data-demo-lock>' + icon('plus') + 'Saisir un mois</button>');
-  var year = currentYear(), y = C.yearSummary(state, year);
-  var hasN1 = state.months.some(function (m) { return m.lastYear > 0; });
-  var cols = 'minmax(120px,1.2fr) repeat(' + (hasN1 ? 7 : 6) + ',minmax(0,1fr))';
-  var head = '<div class="tr head" style="grid-template-columns:' + cols + '"><span>Mois</span><span class="r">Recettes</span><span class="r">Micro</span><span class="r">Charges pro</span><span class="r">Charges perso</span><span class="r">URSSAF</span><span class="r">Dans ta poche</span>' + (hasN1 ? '<span class="r">vs N-1</span>' : '') + '</div>';
-  var goal = state.monthlyGoal;
-  var html = '<div class="stack stagger"><div class="strip">' +
-    '<div><span class="label">CA ' + year + '</span><b>' + n(y.revenue) + '</b></div>' +
-    '<div><span class="label">Moyenne / mois</span><b>' + n(y.average) + '</b></div>' +
-    (y.best ? '<div><span class="label">Meilleur mois</span><b>' + esc(monthName(y.best.month)) + '</b></div>' : '') +
-    '<div><span class="label">Dans ta poche ' + year + '</span><b>' + n(y.pocket) + '</b></div></div>';
-  C.years(state).forEach(function (yr) {
-    html += '<div><div class="year-head">' + yr + '</div><div class="table">' + head + C.monthsOfYear(state, yr).map(function (m) {
-      var t = C.calc(state, m), d = m.lastYear > 0 ? (t.revenue / m.lastYear - 1) * 100 : null;
-      var cls = goal ? (t.revenue < goal ? 'low' : 'ok') : '';
-      return '<div class="tr click m-card ' + cls + '" style="grid-template-columns:' + cols + '" data-action="edit-month" data-id="' + m.id + '" data-demo-lock>' +
-        '<span class="strong">' + esc(monthName(m.month)) + '<small class="m-mobile">' + money(t.revenue) + ' encaissés</small></span>' +
-        '<span class="r m-hide pos strong">' + money(t.revenue) + '</span><span class="r m-hide">' + money(t.micro) + '</span>' +
-        '<span class="r m-hide neg">' + money(t.expenses) + '</span><span class="r m-hide neg">' + money(t.personal) + '</span>' +
-        '<span class="r m-hide">' + money(t.urssaf) + '</span><span class="r strong">' + money(t.pocket) + '</span>' +
-        (hasN1 ? '<span class="r m-hide ' + (d === null ? '' : d >= 0 ? 'pos' : 'neg') + '">' + (d === null ? '—' : (d >= 0 ? '+' : '') + pct(d)) + '</span>' : '') + '</div>';
-    }).join('') + '</div></div>';
-  });
-  return html + '</div>';
+  var years = C.years(state);
+  var year = window.__fosMonthsYear && years.indexOf(window.__fosMonthsYear) !== -1 ? window.__fosMonthsYear : years[0];
+  var y = C.yearSummary(state, year), goal = state.monthlyGoal;
+  var rows = C.monthsOfYear(state, year).map(function (m) {
+    var t = C.calc(state, m);
+    var parts = [['poche', Math.max(0, t.pocket), 'Dans ta poche'], ['urssaf', t.urssaf, 'URSSAF'], ['pro', t.expenses + Math.max(0, t.vat), 'Charges pro'], ['perso', t.personal, 'Charges perso']];
+    var total = Math.max(t.revenue, parts.reduce(function (s, p) { return s + p[1]; }, 0), 1);
+    var bar = parts.map(function (p) { return p[1] > 0 ? '<i class="seg-' + p[0] + '" data-w="' + (p[1] / total * 100) + '" title="' + p[2] + ' · ' + money(p[1]) + '"></i>' : ''; }).join('');
+    var status = goal ? (t.revenue >= goal ? '<span class="pill ok">Objectif atteint</span>' : '<span class="pill low">−' + money0(goal - t.revenue) + '</span>') : '';
+    return '<button type="button" class="mrow" data-action="edit-month" data-id="' + m.id + '" data-demo-lock>' +
+      '<span class="mrow-name"><b>' + esc(monthOnly(m.month)) + '</b>' + status + '</span>' +
+      '<span class="mrow-bar">' + bar + '</span>' +
+      '<span class="mrow-figs"><b class="' + (t.pocket < 0 ? 'neg' : '') + '">' + money(t.pocket) + '</b><small>sur ' + money0(t.revenue) + '</small></span></button>';
+  }).join('');
+  return '<div class="stack stagger">' +
+    (years.length > 1 ? '<div class="segmented" style="max-width:' + (years.length * 90) + 'px">' + years.map(function (yr) { return '<button type="button" data-months-year="' + yr + '" class="' + (yr === year ? 'on' : '') + '">' + yr + '</button>'; }).join('') + '</div>' : '') +
+    '<div class="months-sum"><div><span class="label">Encaissé ' + year + '</span><b>' + n(y.revenue) + '</b></div><div><span class="label">Dans ta poche</span><b class="pos">' + n(y.pocket) + '</b></div><div><span class="label">Moyenne / mois</span><b>' + n(y.average) + '</b></div><div><span class="label">URSSAF</span><b>' + n(y.urssaf) + '</b></div></div>' +
+    '<div class="card mlist"><div class="legend"><span><i class="seg-poche"></i>Dans ta poche</span><span><i class="seg-urssaf"></i>URSSAF</span><span><i class="seg-pro"></i>Charges pro</span><span><i class="seg-perso"></i>Charges perso</span></div>' + rows + '</div>' +
+  '</div>';
 }
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-months-year]');
+  if (b) { window.__fosMonthsYear = b.dataset.monthsYear; ui.animate = true; render(); }
+});
 
 /* ---------- Charges fixes ---------- */
 var CATEGORIES = ['Abonnement', 'Assurance', 'Comptabilité', 'Loyer / coworking', 'Téléphonie', 'Autre charge fixe'];
@@ -333,18 +333,19 @@ function viewForecast() {
   var year = currentYear(), f = C.forecast(state, year), n1Year = String(Number(year) - 1);
   if (!f.summary.count) return emptyState('Saisis un premier mois pour obtenir des prévisions', '<button class="btn" data-action="new-month" data-demo-lock>' + icon('plus') + 'Saisir un mois</button>');
   var target, targetNote;
-  if (f.growthBase && f.remainingMonths) { target = n(f.growthRequired); targetNote = 'par mois pour +' + state.growthTarget + ' % vs ' + n1Year; }
-  else if (state.goal && f.remainingMonths) { target = n(f.goalRequired); targetNote = 'par mois pour l’objectif annuel'; }
-  else if (!f.remainingMonths) { target = 'Terminé'; targetNote = 'Exercice ' + year + ' complet'; }
+  if (!f.remainingMonths) { target = 'Terminé'; targetNote = 'Exercice ' + year + ' complet'; }
+  else if (state.goal) { target = n(f.goalRequired); targetNote = f.goalRequired ? 'par mois pendant ' + f.remainingMonths + ' mois pour ' + money0(state.goal) : 'Objectif déjà atteint'; }
   else { target = '—'; targetNote = '<button class="link" style="color:var(--cyan)" data-action="objectives">Définir un objectif</button>'; }
+  var sign = function (v) { return (v >= 0 ? '+' : '') + pct(v, 1); };
   return '<div class="stack stagger"><div class="grid-2">' +
     '<div class="hero"><span class="label">CA projeté · ' + year + '</span><span class="big">' + n(f.projection) + '</span>' +
-      (state.goal ? '<span class="sub"><b>' + pct(f.goalPercent, 0) + '</b> de l’objectif annuel</span>' : '<span class="sub">Sur ' + f.summary.count + ' mois saisis</span>') + '</div>' +
+      '<span class="sub">Moyenne <b>' + money0(f.summary.average) + '</b> × 12 mois</span>' +
+      '<span class="note" style="color:rgba(255,255,255,.85);margin-top:10px">' + money0(f.summary.revenue) + ' encaissés' + (f.remainingMonths ? ' + ' + f.remainingMonths + ' mois à ' + money0(f.summary.average) : '') + (state.goal ? ' · ' + pct(f.goalPercent, 0) + ' de l’objectif' : '') + '</span></div>' +
     '<div class="hero dark"><span class="label">CA mensuel à viser</span><span class="big">' + target + '</span><span class="sub">' + targetNote + '</span></div></div>' +
-    '<div class="card"><div class="card-head"><h3>Objectifs ' + year + '</h3><button class="btn quiet" data-action="objectives" data-demo-lock>Modifier</button></div><div class="facts">' +
+    '<div class="card"><div class="card-head"><h3>Objectif ' + year + '</h3><button class="btn quiet" data-action="objectives" data-demo-lock>Modifier</button></div><div class="facts">' +
       '<div><span class="label">Annuel</span><b>' + (state.goal ? money(state.goal) : '—') + '</b>' + (state.goal ? '<span class="note">' + pct(f.goalProgress, 0) + ' réalisé</span>' : '') + '</div>' +
-      '<div><span class="label">Mensuel</span><b>' + (state.monthlyGoal ? money(state.monthlyGoal) : '—') + '</b></div>' +
-      '<div><span class="label">Croissance vs ' + n1Year + '</span><b>+' + state.growthTarget + ' %</b><span class="note">' + (f.growthBase ? 'sur ' + money0(f.growthBase) : '<button class="link" data-action="objectives">CA ' + n1Year + ' à renseigner</button>') + '</span></div>' +
+      '<div><span class="label">Soit par mois</span><b>' + (state.monthlyGoal ? money(state.monthlyGoal) : '—') + '</b></div>' +
+      '<div><span class="label">vs ' + n1Year + '</span><b>' + (f.goalGrowth === null ? '—' : sign(f.goalGrowth)) + '</b><span class="note">' + (f.growthBase ? 'sur ' + money0(f.growthBase) + ' · projeté ' + sign(f.projectedGrowth) : '<button class="link" data-action="objectives">CA ' + n1Year + ' à renseigner</button>') + '</span></div>' +
     '</div></div>' +
     '<div class="grid-4">' +
       kpi('Moyenne mensuelle', n(f.summary.average), 'recettes encaissées') +
@@ -489,14 +490,18 @@ function openFixed(id) {
 
 function openObjectives() {
   var n1Year = String(Number(currentYear()) - 1);
-  var body = '<div class="fields">' + field('goal', 'Objectif annuel', state.goal) + field('monthlyGoal', 'Objectif mensuel', state.monthlyGoal) +
-    field('n1', 'CA réel ' + n1Year, state.n1AnnualRevenue) + field('growth', 'Croissance visée (%)', state.growthTarget, { keepZero: true }) + '</div>';
-  openSheet('Objectifs', body, '<span class="preview"></span><button class="btn" type="submit">Enregistrer</button>', function (form) {
+  var body = '<div class="fields">' + field('goal', 'Objectif annuel de CA', state.goal, { full: true }) + field('n1', 'CA réel ' + n1Year, state.n1AnnualRevenue, { full: true }) + '</div>' +
+    '<p class="note" data-goal-hint style="margin-top:12px"></p>';
+  openSheet('Objectif ' + currentYear(), body, '<span class="preview"></span><button class="btn" type="submit">Enregistrer</button>', function (form) {
+    var hint = function () {
+      var g = val(form, 'goal'), b = val(form, 'n1');
+      q('[data-goal-hint]', form).textContent = g ? 'Soit ' + money0(g / 12) + ' par mois' + (b ? ' · ' + (g >= b ? '+' : '') + pct((g / b - 1) * 100, 1) + ' vs ' + n1Year : '') : '';
+    };
+    form.addEventListener('input', hint); hint();
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      state.goal = val(form, 'goal'); state.monthlyGoal = val(form, 'monthlyGoal');
+      state.goal = val(form, 'goal'); state.monthlyGoal = state.goal / 12;
       state.n1AnnualRevenue = val(form, 'n1'); state.n1AnnualRevenueYear = n1Year; state.annualHistory[n1Year] = state.n1AnnualRevenue;
-      state.growthTarget = form.elements.growth.value === '' ? 10 : val(form, 'growth');
       save(); closeSheet(); render(); toast('Objectifs enregistrés');
     });
   });

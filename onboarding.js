@@ -70,9 +70,9 @@
         '<label class="fos-ob-choice"><input type="radio" name="vat" value="no"' + (!state.vatEnabled ? ' checked' : '') + '><span>Je ne facture pas la TVA<small>Franchise en base</small></span></label>' +
         '<label class="fos-ob-choice"><input type="radio" name="vat" value="yes"' + (state.vatEnabled ? ' checked' : '') + '><span>Je facture la TVA</span></label></section>' +
       '<section class="fos-ob-step"><h2>Tes objectifs</h2>' +
-        '<label class="fos-ob-field">Revenu mensuel visé (€)<input name="monthly" inputmode="decimal" placeholder="3 000" value="' + (state.monthlyGoal || '') + '"></label>' +
+        '<label class="fos-ob-field">Revenu mensuel visé (€)<input name="monthly" inputmode="decimal" placeholder="3 000" value="' + (state.monthlyGoal ? Math.round(state.monthlyGoal) : '') + '"></label>' +
         '<label class="fos-ob-field">Chiffre d’affaires de l’an dernier (€)<input name="n1" inputmode="decimal" placeholder="Facultatif" value="' + (state.n1AnnualRevenue || '') + '"></label>' +
-        '<label class="fos-ob-field">Croissance visée (%)<input name="growth" inputmode="decimal" value="' + (Number.isFinite(state.growthTarget) ? state.growthTarget : 10) + '"></label></section>' +
+        '</section>' +
       '<section class="fos-ob-step"><h2>Tes charges fixes mensuelles</h2>' + rows + '</section>' +
       '<div class="fos-ob-nav"><button type="button" data-ob-back>Retour</button><button type="button" class="primary" data-ob-next>Suivant</button></div>' +
       (first ? '<button type="button" class="fos-ob-skip" data-ob-skip>Plus tard</button>' : '<button type="button" class="fos-ob-skip" data-ob-skip>Fermer</button>') + '</form>';
@@ -116,7 +116,6 @@
     state.monthlyGoal = num(form.monthly.value);
     state.goal = state.monthlyGoal * 12;
     state.n1AnnualRevenue = num(form.n1.value);
-    state.growthTarget = form.growth.value === '' ? 10 : Number(String(form.growth.value).replace(',', '.')) || 0;
     CHARGES.forEach(function (c) {
       var id = 'setup-' + c.key, amount = num(form['charge-' + c.key].value), scope = form['scope-' + c.key].value;
       var existing = state.fixed.find(function (f) { return f.id === id; });
