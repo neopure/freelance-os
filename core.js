@@ -6,7 +6,6 @@
   var KEY = 'neopure-finance-v1';
   var MONTH_FIELDS = ['bnc', 'bic', 'other', 'cdd', 'sacem', 'pocket', 'variable', 'personal', 'invest', 'vatCollected', 'vatDeduct', 'lastYear'];
   /* Chaque activité déclarée alimente une case de la déclaration. */
-  var CCI_FREE = 5000;
   var KINDS = { bnc: 'BNC', bic: 'BIC', cdd: 'CDD / CDI', sacem: 'SACEM' };
   var DEFAULT_SHORTCUTS = [
     { label: 'URSSAF', url: 'https://www.autoentrepreneur.urssaf.fr/portail/accueil.html', icon: '↗' },
@@ -42,7 +41,7 @@
     s.bicTaxRate = finite(s.bicTaxRate, 0);
     s.cfpRate = finite(s.cfpRate, 0.1);
     s.cciRate = finite(s.cciRate, 0.044);
-    /* Taxe CCI : 0,044 % du CA BIC de prestations, le BNC n'y est pas soumis. */
+    /* Taxe CCI : 0,044 % du CA (prestations de services). */
     if (!s.cciMigrated) { if (s.cciRate === 0.04) s.cciRate = 0.044; s.cciMigrated = true; }
     s.activities = (Array.isArray(s.activities) ? s.activities : []).filter(function (a) { return a && KINDS[a.kind]; }).map(function (a) {
       return { id: a.id || uid(), label: String(a.label || 'Activité'), kind: a.kind };
@@ -104,9 +103,8 @@
     var bncContribution = Math.round(m.bnc * state.bncTaxRate / 100);
     var bicContribution = Math.round(m.bic * state.bicTaxRate / 100);
     var cfpContribution = Math.round(micro * state.cfpRate / 100);
-    /* Pas de CCI tant que le CA micro de l'année, ce mois compris, reste sous 5 000 €. */
-    var yearToDate = micro + sum(state.months, function (x) { return x.month.slice(0, 4) === m.month.slice(0, 4) && x.month < m.month ? x.bnc + x.bic : 0; });
-    var cciContribution = yearToDate > CCI_FREE ? Math.round(m.bic * state.cciRate / 100) : 0;
+    /* Taxe CCI/CMA : calculée globalement sur tout le CA déclaré, comme sur les récapitulatifs URSSAF. */
+    var cciContribution = Math.round(micro * state.cciRate / 100);
     var vlContribution = state.vlEnabled ? Math.round(m.bnc * state.vlBncRate / 100) + Math.round(m.bic * state.vlBicRate / 100) : 0;
     var urssaf = bncContribution + bicContribution + cfpContribution + cciContribution + vlContribution;
     var revenue = m.bnc + m.bic + m.other + m.cdd + m.sacem;
