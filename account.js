@@ -87,7 +87,9 @@
   }
   /* Appelée uniquement depuis un clic : Safari et l'app iPhone bloquent sinon la fenêtre Google. */
   function requestToken(chooseAccount) {
-    return loadGis().then(function () {
+    /* Bibliothèque déjà chargée : la fenêtre s'ouvre dans le même geste, sans attente que Safari refuserait. */
+    var ready = window.google && google.accounts && google.accounts.oauth2 ? { then: function (f) { return f(); } } : loadGis();
+    return Promise.resolve(ready.then(function () {
       return new Promise(function (resolve, reject) {
         var client = google.accounts.oauth2.initTokenClient({
           client_id: CLIENT_ID,
@@ -101,7 +103,7 @@
         });
         client.requestAccessToken({ prompt: chooseAccount ? 'select_account' : '' });
       });
-    });
+    }));
   }
   function api(path, options, token) {
     options = options || {};
@@ -503,7 +505,8 @@
     paintStatus();
     pull();
     loadGis().catch(function () {});
-    document.addEventListener('pointerdown', renewOnGesture, true);
+    /* « click » et non « pointerdown » : sur iPhone, seul un toucher terminé autorise la fenêtre Google. */
+    document.addEventListener('click', renewOnGesture, true);
     document.addEventListener('keydown', renewOnGesture, true);
     /* Quitter l'app ou passer à une autre : on envoie tout de suite ce qui reste. */
     document.addEventListener('visibilitychange', function () {
