@@ -641,7 +641,7 @@ body.apercu .topbar .shortcut{box-shadow:none}
 body.apercu .topbar .btn.add{box-shadow:0 10px 24px rgba(184,101,238,.35)}
 body.apercu .topbar{padding-top:16px}
 body.apercu .topbar.scrolled{padding-top:10px}
-@media (max-width:1180px){body.apercu .topbar .shortcuts{display:none}}
+@media (max-width:1400px){body.apercu .topbar .shortcuts{display:none}}
 @media (max-width:1000px){body.apercu .topbar .btn.add span,body.apercu .topbar .btn.add{font-size:0;gap:0;width:44px;padding:0}body.apercu .topbar .btn.add svg{width:20px;height:20px}}
 @media (max-width:760px){
   body.apercu .topbar-in{grid-template-columns:1fr auto;padding:6px 6px 6px 12px!important;border-radius:20px;background:linear-gradient(145deg,rgba(255,255,255,.74),rgba(255,255,255,.44))!important;border:1px solid rgba(255,255,255,.8)!important;-webkit-backdrop-filter:blur(22px)!important;backdrop-filter:blur(22px)!important}
@@ -658,3 +658,17 @@ body.apercu .topbar.scrolled{padding-top:10px}
 .act-del{width:36px;height:36px;border:0;border-radius:50%;background:transparent;color:var(--muted);font-size:20px;cursor:pointer}.act-del:hover{background:var(--lav-2);color:var(--text)}
 .act-add{margin-top:4px}
 @media(max-width:560px){.act-row{grid-template-columns:minmax(0,1fr) 36px}.act-row .segmented{grid-column:1;grid-row:2}}
+/* Photo de profil : toujours cadrée et centrée, y compris sous l'effet verre */
+.fos-account-trigger.has-photo{background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important}
+/* CA par activité */
+.act-line{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.6fr) 168px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--line-2)}
+.act-line:first-of-type{border-top:0}
+.act-name{display:flex;align-items:center;gap:2px;min-width:0}.act-name b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.act-bar{display:flex;height:10px;border-radius:99px;background:var(--line-2);overflow:hidden}
+.act-bar i{display:block;height:100%;width:0;transition:width .35s cubic-bezier(.2,.8,.2,1)}
+.act-bar i.k-bnc{background:#8b5cf6}.act-bar i.k-bic{background:#2f9e6f}.act-bar i.k-cdd{background:#7c8799}.act-bar i.k-sacem{background:#d9487f}
+.act-bar i.plan{background:repeating-linear-gradient(135deg,#c9bdf0 0 4px,#e8e1fb 4px 8px)}
+.act-figs{text-align:right;white-space:nowrap}.act-figs b{display:block}.act-figs small{color:var(--muted);font-size:12px;font-weight:600}
+.act-plan{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--line-2)}.act-plan:first-of-type{border-top:0}.act-plan .kind{margin-left:0}
+.event .t .kind{margin-left:8px}
+@media(max-width:560px){.act-line{grid-template-columns:minmax(0,1fr) auto}.act-bar{grid-column:1/-1;grid-row:2}}

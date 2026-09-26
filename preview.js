@@ -94,6 +94,7 @@
       '</section>' +
       '<div class="modules stagger">' + urssaf + tva + goalMod + '</div>' +
       '<div class="home-grid stagger">' + agenda + yearMod + '</div>' +
+      activityCard(year) +
     '</div>';
   }
 

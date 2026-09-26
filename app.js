@@ -210,6 +210,24 @@ function barChart(items, goal, opts) {
     return '<div class="col ' + cls + '"' + (i.onclick ? ' ' + i.onclick : '') + '><span class="tip">' + esc(i.tip || money(i.value)) + '</span>' + (i.value > 0 && !opts.noValues ? '<span class="val">' + money0(i.value) + '</span>' : '') + '<div class="b" data-h="' + (h * 0.82) + '"></div><span>' + esc(i.label) + '</span></div>';
   }).join('') + '</div>';
 }
+/* CA de l'année par activité, avec ce que l'agenda prévoit d'ici décembre. */
+function activityCard(year) {
+  if (!state.activities.length) return '';
+  var rows = C.activityTotals(state, C.monthsOfYear(state, year));
+  var now = C.monthKey(), from = now > year + '-12' ? null : (now < year + '-01' ? year + '-01' : now);
+  var planned = from && window.FOSAgenda && FOSAgenda.plannedByActivity ? FOSAgenda.plannedByActivity(from, year + '-12') : {};
+  rows = rows.filter(function (r) { return r.total || planned[r.activity.id]; }).sort(function (a, b) { return b.total - a.total; });
+  if (!rows.length) return '';
+  var max = Math.max.apply(null, rows.map(function (r) { return r.total + (planned[r.activity.id] || 0); })) || 1;
+  var all = rows.reduce(function (s2, r) { return s2 + r.total; }, 0) || 1;
+  return '<div class="card acts-card"><div class="card-head"><h3>Par activité · ' + year + '</h3><button class="link" data-action="activities" data-demo-lock>Mes activités</button></div>' +
+    rows.map(function (r) {
+      var a = r.activity, p = planned[a.id] || 0;
+      return '<div class="act-line"><span class="act-name"><b>' + esc(a.label) + '</b>' + kindChip(a.kind) + '</span>' +
+        '<span class="act-bar"><i class="k-' + a.kind + '" data-w="' + (r.total / max * 100) + '"></i>' + (p ? '<i class="plan" data-w="' + (p / max * 100) + '"></i>' : '') + '</span>' +
+        '<span class="act-figs"><b>' + money0(r.total) + '</b><small>' + pct(r.total / all * 100, 0) + (p ? ' · +' + money0(p) + ' prévus' : '') + '</small></span></div>';
+    }).join('') + '</div>';
+}
 function emptyState(title, button) { return '<div class="card empty-state"><b>' + title + '</b>' + (button || '') + '</div>'; }
 
 /* ---------- Accueil ---------- */
@@ -219,7 +237,7 @@ function viewDashboard() {
   var t = C.calc(state, m), year = m.month.slice(0, 4), y = C.yearSummary(state, year), due = C.urssafUpcoming(state);
   var goal = state.monthlyGoal, share = t.revenue ? t.pocket / t.revenue * 100 : 0;
   var n1 = m.lastYear > 0 ? (t.revenue / m.lastYear - 1) * 100 : null;
-  var chips = [['Micro', y.micro], ['CDD', y.cdd], ['SACEM', y.sacem], ['Autres', y.other]].filter(function (c, i) { return i === 0 || c[1] > 0; });
+  var chips = [['Micro', y.micro], ['CDD / CDI', y.cdd], ['SACEM', y.sacem], ['Autres', y.other]].filter(function (c, i) { return i === 0 || c[1] > 0; });
   var urgent = due.total > 0 && due.days <= 7;
   var monthsKeys = []; for (var i = 1; i <= 12; i++) monthsKeys.push(year + '-' + String(i).padStart(2, '0'));
   var chart = monthsKeys.map(function (k) {
@@ -243,7 +261,7 @@ function viewDashboard() {
       kpi('Charges perso', n(t.personal), 'dont fixes ' + money(C.fixedTotal(state, 'perso'))) +
       kpi('URSSAF · 1er ' + monthOnly(due.paymentMonth), n(due.total), due.item ? urssafCountdown(due) + ' · CA ' + monthOnly(due.period) : 'Synthèse de ' + monthOnly(due.period) + ' à saisir', urgent ? 'alert' : '') +
     '</div>' +
-    '<div class="card"><div class="card-head"><h3>Recettes ' + year + '</h3></div>' + barChart(chart, goal) + '</div>' +
+    '<div class="card"><div class="card-head"><h3>Recettes ' + year + '</h3></div>' + barChart(chart, goal) + '</div>' + activityCard(year) +
     '<div class="grid-2">' + (state.vatEnabled ? '' : gauge('Franchise TVA', thVat, { year: year })) + gauge('Plafond micro-entreprise', thMicro, { year: year }) + '</div>' +
   '</div>';
 }
@@ -267,7 +285,7 @@ function viewMonths() {
   }).join('');
   return '<div class="stack stagger">' +
     (years.length > 1 ? '<div class="segmented" style="max-width:' + (years.length * 90) + 'px">' + years.map(function (yr) { return '<button type="button" data-months-year="' + yr + '" class="' + (yr === year ? 'on' : '') + '">' + yr + '</button>'; }).join('') + '</div>' : '') +
-    '<div class="months-sum"><div><span class="label">Encaissé ' + year + '</span><b>' + n(y.revenue) + '</b></div><div><span class="label">Dans ta poche</span><b class="pos">' + n(y.pocket) + '</b></div><div><span class="label">Moyenne / mois</span><b>' + n(y.average) + '</b></div><div><span class="label">URSSAF</span><b>' + n(y.urssaf) + '</b></div></div>' +
+    '<div class="months-sum"><div><span class="label">Encaissé ' + year + '</span><b>' + n(y.revenue) + '</b></div><div><span class="label">Dans ta poche</span><b class="pos">' + n(y.pocket) + '</b></div><div><span class="label">Moyenne / mois</span><b>' + n(y.average) + '</b></div><div><span class="label">URSSAF</span><b>' + n(y.urssaf) + '</b></div></div>' + activityCard(year) +
     '<div class="card mlist"><div class="legend"><span><i class="seg-poche"></i>Dans ta poche</span><span><i class="seg-urssaf"></i>URSSAF</span><span><i class="seg-pro"></i>Charges pro</span><span><i class="seg-perso"></i>Charges perso</span></div>' + rows + '</div>' +
   '</div>';
 }
@@ -476,7 +494,7 @@ function openMonth(id) {
 /* ---------- Activités : chacune alimente une case de la déclaration ---------- */
 function kindChip(k) { return '<span class="kind k-' + k + '">' + C.KINDS[k] + '</span>'; }
 function revenueFields(m) {
-  if (!state.activities.length) return '<div class="fields">' + field('bnc', 'CA BNC', m.bnc) + field('bic', 'CA BIC', m.bic) + field('cdd', 'Salaire / CDD', m.cdd) + field('sacem', 'Droits SACEM', m.sacem) + '</div>';
+  if (!state.activities.length) return '<div class="fields">' + field('bnc', 'CA BNC', m.bnc) + field('bic', 'CA BIC', m.bic) + field('cdd', 'CDD / CDI', m.cdd) + field('sacem', 'Droits SACEM', m.sacem) + '</div>';
   var split = m.split || {}, known = C.splitTotals(state, Object.assign({}, split, { '~bnc': 0, '~bic': 0, '~cdd': 0, '~sacem': 0 }));
   var html = state.activities.map(function (a) { return field('act-' + a.id, esc(a.label) + kindChip(a.kind), C.num(split[a.id])); }).join('');
   /* Une somme saisie avant le détail par activité reste visible, rattachée à sa case. */
@@ -486,7 +504,7 @@ function revenueFields(m) {
   });
   return '<div class="fields acts">' + html + '</div><div class="kind-sum" data-kind-sum></div>';
 }
-var KIND_OPTIONS = [['bnc', 'BNC'], ['bic', 'BIC'], ['cdd', 'Salaire'], ['sacem', 'SACEM']];
+var KIND_OPTIONS = [['bnc', 'BNC'], ['bic', 'BIC'], ['cdd', 'CDD / CDI'], ['sacem', 'SACEM']];
 function activityRow(a, i) {
   a = a || { id: '', label: '', kind: 'bnc' };
   return '<div class="act-row" data-act="' + esc(a.id) + '"><input name="act-label-' + i + '" type="text" value="' + esc(a.label) + '" placeholder="Ex. DJ, tournages, renfort bar…" aria-label="Nom de l’activité">' +
@@ -548,7 +566,7 @@ function applyActivities(list) {
   if (list.some(function (a) { return a.kind === 'bic'; }) && !state.bicTaxRate) state.bicTaxRate = 21.2;
 }
 function openActivities(after) {
-  var body = '<p class="sheet-note">Chaque activité apparaît dans la saisie du mois et compte dans la bonne case : BNC, BIC, salaire ou SACEM.</p>' + activityEditor(state.activities);
+  var body = '<p class="sheet-note">Chaque activité apparaît dans la saisie du mois et compte dans la bonne case : BNC, BIC, CDD / CDI ou SACEM.</p>' + activityEditor(state.activities);
   openSheet('Mes activités', body, '<span class="preview"></span><button class="btn" type="submit">Enregistrer</button>', function (form) {
     bindActivityEditor(form);
     form.addEventListener('submit', function (e) {

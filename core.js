@@ -6,7 +6,8 @@
   var KEY = 'neopure-finance-v1';
   var MONTH_FIELDS = ['bnc', 'bic', 'other', 'cdd', 'sacem', 'pocket', 'variable', 'personal', 'invest', 'vatCollected', 'vatDeduct', 'lastYear'];
   /* Chaque activité déclarée alimente une case de la déclaration. */
-  var KINDS = { bnc: 'BNC', bic: 'BIC', cdd: 'Salaire', sacem: 'SACEM' };
+  var CCI_FREE = 5000;
+  var KINDS = { bnc: 'BNC', bic: 'BIC', cdd: 'CDD / CDI', sacem: 'SACEM' };
   var DEFAULT_SHORTCUTS = [
     { label: 'URSSAF', url: 'https://www.autoentrepreneur.urssaf.fr/portail/accueil.html', icon: '↗' },
     { label: 'Indy', url: 'https://www.indy.fr/', icon: '↗' },
@@ -99,7 +100,9 @@
     var bncContribution = Math.round(m.bnc * state.bncTaxRate / 100);
     var bicContribution = Math.round(m.bic * state.bicTaxRate / 100);
     var cfpContribution = Math.round(micro * state.cfpRate / 100);
-    var cciContribution = Math.round(m.bic * state.cciRate / 100);
+    /* Pas de CCI tant que le CA micro de l'année, ce mois compris, reste sous 5 000 €. */
+    var yearToDate = micro + sum(state.months, function (x) { return x.month.slice(0, 4) === m.month.slice(0, 4) && x.month < m.month ? x.bnc + x.bic : 0; });
+    var cciContribution = yearToDate > CCI_FREE ? Math.round(m.bic * state.cciRate / 100) : 0;
     var urssaf = bncContribution + bicContribution + cfpContribution + cciContribution;
     var revenue = m.bnc + m.bic + m.other + m.cdd + m.sacem;
     var expenses = fixedTotal(state, 'pro') + m.variable + m.invest;

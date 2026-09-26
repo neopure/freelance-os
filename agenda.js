@@ -43,6 +43,25 @@
     var rule = data.rules.find(function (r) { var k = String(r.keyword || '').trim().toLocaleLowerCase('fr-FR'); return k && t.indexOf(k) !== -1; });
     return rule ? Number(rule.amount) || 0 : 0;
   }
+  /* Activité d'une date : choisie à la main, sinon devinée d'après son titre. */
+  var STOP = ['de', 'du', 'des', 'en', 'et', 'la', 'le', 'les', 'un', 'une', 'pour', 'avec', 'zz'];
+  function words(t) { return String(t || '').toLocaleLowerCase('fr-FR').normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z0-9]+/).filter(function (w) { return w.length >= 2 && STOP.indexOf(w) === -1; }); }
+  function acts() { return (window.state && state.activities) || []; }
+  function activityOf(e) {
+    var list = acts();
+    if (e.activity !== undefined) return list.find(function (a) { return a.id === e.activity; }) || null;
+    var t = words(e.title);
+    return list.find(function (a) { return words(a.label).some(function (w) { return t.indexOf(w) !== -1 || t.some(function (x) { return x.length >= 5 && w.length >= 5 && x.slice(0, 5) === w.slice(0, 5); }); }); }) || null;
+  }
+  function plannedByActivity(fromKey, toKey) {
+    var out = {};
+    data.events.forEach(function (e) {
+      var k = String(e.date || '').slice(0, 7); if (k < fromKey || (toKey && k > toKey)) return;
+      var a = activityOf(e); if (a) out[a.id] = (out[a.id] || 0) + (Number(e.amount) || 0);
+    });
+    return out;
+  }
+  function chip(a) { return a ? '<span class="kind k-' + a.kind + '">' + esc(a.label) + '</span>' : ''; }
   function applyRules() {
     data.events = data.events.map(function (e) {
       if (e.source !== 'google' || e.amountMode === 'manual') return e;
@@ -68,9 +87,9 @@
       '<div class="card"><div class="card-head"><h3>' + esc(monthName(key)) + '</h3></div>' +
         (list.length ? '<div class="events">' + list.map(function (e) {
           var d = new Date(e.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-          return '<div class="event" data-agenda-act="edit" data-id="' + esc(e.id) + '" data-demo-lock><span class="d">' + esc(d) + '</span><span class="t">' + esc(e.title) + (e.source === 'google' ? '<small>Google Agenda</small>' : '') + '</span><span class="a">' + money(Number(e.amount) || 0) + '</span></div>';
+          return '<div class="event" data-agenda-act="edit" data-id="' + esc(e.id) + '" data-demo-lock><span class="d">' + esc(d) + '</span><span class="t">' + esc(e.title) + chip(activityOf(e)) + (e.source === 'google' ? '<small>Google Agenda</small>' : '') + '</span><span class="a">' + money(Number(e.amount) || 0) + '</span></div>';
         }).join('') + '</div>' : '<p class="note" style="margin:0">Aucune date ce mois-ci.</p>') + '</div>' +
-      '</div><div class="stack">' +
+      '</div><div class="stack">' + activityCard(chartKeys) +
       '<div class="card"><div class="card-head"><h3>Google Agenda</h3></div><p class="gcal-status' + (data.google.error ? ' error' : '') + '">' + status + '</p>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn quiet" data-agenda-act="sync" data-demo-lock>' + (data.google.lastSyncedAt ? 'Synchroniser' : 'Connecter') + '</button>' +
         (data.google.lastSyncedAt ? '<button class="btn quiet" data-agenda-act="reset" data-demo-lock>Réimporter</button><button class="btn quiet" data-agenda-act="switch" data-demo-lock>Changer de compte</button>' : '') + '</div></div>' +
@@ -82,15 +101,30 @@
       '</div></div>';
   }
 
+  function activityCard(keys) {
+    if (!acts().length || !keys.length) return '';
+    var by = plannedByActivity(keys[0], keys[keys.length - 1]);
+    var rows = acts().filter(function (a) { return by[a.id]; });
+    if (!rows.length) return '';
+    return '<div class="card"><div class="card-head"><h3>Prévu par activité</h3><span class="note">6 prochains mois</span></div>' +
+      rows.map(function (a) { return '<div class="act-plan"><span>' + chip(a) + '</span><b>' + money(by[a.id]) + '</b></div>'; }).join('') + '</div>';
+  }
   function openEvent(existing) {
     var e = existing || { date: data.activeMonth + '-01', title: '', amount: '' };
     var body = '<div class="fields">' +
       '<div class="field full"><label for="ev-title">Prestation</label><input id="ev-title" name="title" type="text" value="' + esc(e.title) + '" placeholder="Mariage, DJ set…" required></div>' +
       FOSUI.dateField('date', 'Date', e.date) +
-      '<div class="field"><label for="ev-amount">Montant</label><input id="ev-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" value="' + esc(e.amount || '') + '" placeholder="0"></div></div>';
+      '<div class="field"><label for="ev-amount">Montant</label><input id="ev-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" value="' + esc(e.amount || '') + '" placeholder="0"></div>' + activityField(e) + '</div>';
     var foot = '<span class="preview"></span>' + (existing ? '<button type="button" class="btn danger" data-delete>Supprimer</button>' : '') + '<button class="btn" type="submit">Enregistrer</button>';
     openSheet(existing ? 'Modifier la date' : 'Nouvelle date', body, foot, function (form) {
+      var picked = false;
+      form.addEventListener('click', function (ev) { if (ev.target.closest('[data-seg="activity"] button')) picked = true; });
       form.elements.title.addEventListener('input', function () {
+        if (!picked && form.elements.activity && !(existing && existing.activity !== undefined)) {
+          var a = activityOf({ title: form.elements.title.value }), v = a ? a.id : '';
+          form.elements.activity.value = v;
+          form.querySelectorAll('[data-seg="activity"] button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === v); });
+        }
         if (existing || form.elements.amount.value) return;
         var a = ruleAmount(form.elements.title.value); if (a) form.elements.amount.value = a;
       });
@@ -100,6 +134,7 @@
         if (!title) { form.elements.title.focus(); return; }
         if (!date) { form.elements.date.focus(); return; }
         var next = Object.assign({}, existing || {}, { id: existing ? existing.id : uid(), source: existing ? existing.source || 'manual' : 'manual', date: date, title: title, amount: Number(form.elements.amount.value) || 0, amountMode: 'manual' });
+        if (form.elements.activity) next.activity = form.elements.activity.value;
         if (existing) data.events = data.events.map(function (x) { return x.id === existing.id ? next : x; }); else data.events.push(next);
         data.activeMonth = date.slice(0, 7);
         save(); closeSheet(); rerender(); toast('Date enregistrée');
@@ -220,5 +255,13 @@
   });
   window.addEventListener('storage', function (e) { if (e.key === KEY) data = load(); });
 
-  window.FOSAgenda = { view: view };
+  function activityField(e) {
+    if (!acts().length) return '';
+    var cur = activityOf(e), v = cur ? cur.id : '';
+    return '<div class="field full"><label>Activité</label><input type="hidden" name="activity" value="' + esc(v) + '"><div class="segmented wrap" data-seg="activity">' +
+      acts().map(function (a) { return '<button type="button" data-v="' + esc(a.id) + '" class="' + (a.id === v ? 'on' : '') + '">' + esc(a.label) + '</button>'; }).join('') +
+      '<button type="button" data-v="" class="' + (v ? '' : 'on') + '">Aucune</button></div></div>';
+  }
+
+  window.FOSAgenda = { view: view, plannedByActivity: plannedByActivity, activityOf: activityOf };
 }());

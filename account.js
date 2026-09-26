@@ -402,7 +402,7 @@
   function paintStatus() {
     var info = statusInfo();
     document.querySelectorAll('.fos-account-trigger').forEach(function (node) {
-      node.className = 'fos-drive-trigger fos-account-trigger ' + info.kind;
+      node.className = 'fos-drive-trigger fos-account-trigger ' + info.kind + (node.style.backgroundImage ? ' has-photo' : '');
       node.title = info.text;
     });
     document.querySelectorAll('[data-fos-sync]').forEach(function (node) {
@@ -455,7 +455,7 @@
     button.type = 'button';
     button.className = 'fos-drive-trigger fos-account-trigger';
     button.setAttribute('aria-label', 'Mon compte');
-    if (s.picture) button.style.backgroundImage = 'url("' + s.picture.replace(/"/g, '') + '")';
+    if (s.picture) { button.classList.add('has-photo'); button.style.backgroundImage = 'url("' + s.picture.replace(/"/g, '') + '")'; }
     else button.textContent = (s.name || s.email || '?').charAt(0).toUpperCase();
     button.appendChild(document.createElement('i'));
     button.onclick = openPanel;
