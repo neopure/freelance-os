@@ -53,7 +53,8 @@ var ICONS = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
   trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
-  upload: '<path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 20h16"/>'
+  upload: '<path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 20h16"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>'
 };
 function icon(name) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + ICONS[name] + '</svg>'; }
 
@@ -177,8 +178,8 @@ function renderWatch() {
   if (latest) {
     var t = C.calc(state, latest), goal = state.monthlyGoal;
     var p = goal ? Math.min(100, t.revenue / goal * 100) : 0;
-    html += '<div class="watch"><small>' + (goal ? 'Objectif · ' : 'CA · ') + esc(monthName(latest.month)) + '</small><b>' + money(t.revenue) + (goal ? ' <span style="color:#a9a4b8;font-weight:600;font-size:12px">/ ' + money0(goal) + '</span>' : '') + '</b>' +
-      (goal ? '<div class="bar"><i style="width:' + p + '%;background:' + (t.revenue >= goal ? 'var(--cyan)' : '#f1c4f2') + '"></i></div><em>' + (t.revenue >= goal ? 'Objectif atteint' : money(goal - t.revenue) + ' à faire') + '</em>' : '') + '</div>';
+    html += '<div class="watch' + (goal ? ' goal' : '') + '"><small>' + (goal ? '◎ Moyenne visée · ' : 'CA · ') + esc(monthName(latest.month)) + '</small><b>' + money(t.revenue) + (goal ? ' <span style="color:#a9a4b8;font-weight:600;font-size:12px">/ ' + money0(goal) + '</span>' : '') + '</b>' +
+      (goal ? '<div class="bar"><i style="width:' + p + '%"></i></div><em>' + (t.revenue >= goal ? 'Moyenne visée atteinte' : money(goal - t.revenue) + ' sous la moyenne visée') + '</em>' : '') + '</div>';
   }
   var urgent = due.total > 0 && due.days <= 7;
   html += '<div class="watch' + (urgent ? ' alert' : '') + '"><small>URSSAF · 1er ' + esc(monthOnly(due.paymentMonth)) + '</small><b>' + money(due.total) + '</b><em>' + urssafCountdown(due) + '</em></div>';
@@ -231,7 +232,7 @@ function viewDashboard() {
     '<div class="grid-2">' +
       '<div class="hero"><span class="label">Dans ta poche · ' + esc(monthName(m.month)) + '</span><span class="big">' + n(t.pocket) + '</span>' +
         '<span class="sub"><b>' + pct(share) + '</b> de tes recettes</span>' +
-        (goal ? '<div class="progress"><i data-w="' + Math.min(100, t.revenue / goal * 100) + '"></i></div><span class="note" style="color:rgba(255,255,255,.85);margin-top:8px">' + money(t.revenue) + ' encaissés sur ' + money0(goal) + ' d’objectif</span>' : '') + '</div>' +
+        (goal ? '<div class="progress goal"><i data-w="' + Math.min(100, t.revenue / goal * 100) + '"></i></div><span class="note" style="color:rgba(255,255,255,.85);margin-top:8px">◎ ' + money(t.revenue) + ' encaissés · moyenne visée ' + money0(goal) + '</span>' : '') + '</div>' +
       '<div class="hero dark"><span class="label">CA encaissé · ' + year + '</span><span class="big">' + n(y.revenue) + '</span>' +
         '<span class="sub">Dans ta poche · <b>' + money(y.pocket) + '</b></span>' +
         '<div class="chips">' + chips.map(function (c) { return '<span class="chip">' + c[0] + ' <b>' + money(c[1]) + '</b></span>'; }).join('') + '</div></div>' +
@@ -258,7 +259,7 @@ function viewMonths() {
     var parts = [['poche', Math.max(0, t.pocket), 'Dans ta poche'], ['urssaf', t.urssaf, 'URSSAF'], ['pro', t.expenses + Math.max(0, t.vat), 'Charges pro'], ['perso', t.personal, 'Charges perso']];
     var total = Math.max(t.revenue, parts.reduce(function (s, p) { return s + p[1]; }, 0), 1);
     var bar = parts.map(function (p) { return p[1] > 0 ? '<i class="seg-' + p[0] + '" data-w="' + (p[1] / total * 100) + '" title="' + p[2] + ' · ' + money(p[1]) + '"></i>' : ''; }).join('');
-    var status = goal ? (t.revenue >= goal ? '<span class="pill ok">Objectif atteint</span>' : '<span class="pill low">−' + money0(goal - t.revenue) + '</span>') : '';
+    var status = goal ? (t.revenue >= goal ? '<span class="pill goal-ok">◎ Moyenne visée</span>' : '<span class="pill goal-low">◎ −' + money0(goal - t.revenue) + '</span>') : '';
     return '<button type="button" class="mrow" data-action="edit-month" data-id="' + m.id + '" data-demo-lock>' +
       '<span class="mrow-name"><b>' + esc(monthOnly(m.month)) + '</b>' + status + '</span>' +
       '<span class="mrow-bar">' + bar + '</span>' +
@@ -341,10 +342,10 @@ function viewForecast() {
     '<div class="hero"><span class="label">CA projeté · ' + year + '</span><span class="big">' + n(f.projection) + '</span>' +
       '<span class="sub">Moyenne <b>' + money0(f.summary.average) + '</b> × 12 mois</span>' +
       '<span class="note" style="color:rgba(255,255,255,.85);margin-top:10px">' + money0(f.summary.revenue) + ' encaissés' + (f.remainingMonths ? ' + ' + f.remainingMonths + ' mois à ' + money0(f.summary.average) : '') + (state.goal ? ' · ' + pct(f.goalPercent, 0) + ' de l’objectif' : '') + '</span></div>' +
-    '<div class="hero dark"><span class="label">CA mensuel à viser</span><span class="big">' + target + '</span><span class="sub">' + targetNote + '</span></div></div>' +
-    '<div class="card"><div class="card-head"><h3>Objectif ' + year + '</h3><button class="btn quiet" data-action="objectives" data-demo-lock>Modifier</button></div><div class="facts">' +
+    '<div class="hero goal"><span class="label">◎ CA mensuel à viser</span><span class="big">' + target + '</span><span class="sub">' + targetNote + '</span></div></div>' +
+    '<div class="card goal-card"><div class="card-head"><h3><span class="goal-badge">' + icon('target') + '</span>Objectif annuel ' + year + '</h3><button class="btn quiet" data-action="objectives" data-demo-lock>Modifier</button></div><div class="facts">' +
       '<div><span class="label">Annuel</span><b>' + (state.goal ? money(state.goal) : '—') + '</b>' + (state.goal ? '<span class="note">' + pct(f.goalProgress, 0) + ' réalisé</span>' : '') + '</div>' +
-      '<div><span class="label">Soit par mois</span><b>' + (state.monthlyGoal ? money(state.monthlyGoal) : '—') + '</b></div>' +
+      '<div><span class="label">Moyenne visée / mois</span><b>' + (state.monthlyGoal ? money(state.monthlyGoal) : '—') + '</b></div>' +
       '<div><span class="label">vs ' + n1Year + '</span><b>' + (f.goalGrowth === null ? '—' : sign(f.goalGrowth)) + '</b><span class="note">' + (f.growthBase ? 'sur ' + money0(f.growthBase) + ' · projeté ' + sign(f.projectedGrowth) : '<button class="link" data-action="objectives">CA ' + n1Year + ' à renseigner</button>') + '</span></div>' +
     '</div></div>' +
     '<div class="grid-4">' +

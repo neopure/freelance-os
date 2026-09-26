@@ -61,7 +61,7 @@
         '<button class="btn" data-agenda-act="new" data-demo-lock>' + icon('plus') + '<span>Ajouter</span></button></div></div>' +
       '<div class="grid-3">' +
         kpi('Prévu · ' + monthOnly(key), n(total), list.length + ' date' + (list.length > 1 ? 's' : '') + (list.length ? ' · moy. ' + money0(avg) : '')) +
-        kpi('Objectif du mois', g ? n(g) : '—', g ? (total >= g ? '<span class="pos">Atteint</span>' : 'Reste ' + money(g - total)) : '') +
+        kpi(data.forecastGoal ? 'Objectif du mois' : '◎ Moyenne visée', g ? n(g) : '—', g ? (total >= g ? 'Atteint' : 'Reste ' + money(g - total)) : '', data.forecastGoal ? '' : 'goal') +
         kpi('6 prochains mois', n(chartKeys.reduce(function (s, k) { return s + totalOf(k); }, 0)), '') +
       '</div>' +
       '<div class="card"><div class="card-head"><h3>Prévisions</h3></div>' + barChart(chartKeys.map(function (k) { return { label: monthShort(k), value: totalOf(k), tip: monthName(k) + ' · ' + money(totalOf(k)), onclick: 'data-agenda-act="pick" data-key="' + k + '"' }; }), g, { noLow: true }) + '</div>' +

@@ -67,10 +67,10 @@
       '<span class="module-line">' + money0(vat.micro) + ' encaissés sur ' + money0(vat.limit) + '</span>' +
       '<span class="module-foot">' + (vat.crossed ? 'Seuil dépassé : la TVA s’applique' : vat.crossingThisYear ? 'Au-delà, tu factures la TVA · passage estimé en ' + esc(monthOnly(vat.crossing)) : 'Au-delà, tu factures la TVA') + '</span></button>';
 
-    var goalMod = '<button type="button" class="module" data-view="forecast">' +
-      '<span class="module-kicker">' + icon('forecast') + 'Objectif ' + year + '</span>' +
+    var goalMod = '<button type="button" class="module goal" data-view="forecast">' +
+      '<span class="module-kicker">' + icon('target') + 'Objectif annuel ' + year + '</span>' +
       (state.goal
-        ? '<b class="module-big">' + n(f.goalProgress, 'pct') + '</b><span class="track" style="margin:8px 0"><i data-w="' + Math.min(100, f.goalProgress) + '"></i></span>' +
+        ? '<b class="module-big">' + n(f.goalProgress, 'pct') + '</b><span class="track goal" style="margin:8px 0"><i data-w="' + Math.min(100, f.goalProgress) + '"></i></span>' +
           '<span class="module-line">' + money0(y.revenue) + ' sur ' + money0(state.goal) + '</span><span class="module-foot">' + (f.goalRequired ? 'Reste ' + money0(f.goalRequired) + ' par mois' : 'Objectif atteint') + '</span>'
         : '<b class="module-big">—</b><span class="module-line">Définis ton objectif annuel</span>') + '</button>';
 
@@ -147,7 +147,7 @@
     if (!f.summary.count) return RENDERERS_ORIGINAL.forecast();
     return stage({ kicker: 'CA projeté · ' + year, big: n(f.projection),
       soft: 'ta moyenne de ' + money0(f.summary.average) + ' × 12 mois' + (state.goal ? ' · ' + pct(f.goalPercent, 0) + ' de l’objectif' : ''),
-      stats: [['Encaissé', money0(f.summary.revenue)], ['À viser / mois', f.remainingMonths && state.goal ? money0(f.goalRequired) : '—'], ['Résultat projeté', money0(f.projectedNet)]] }) +
+      stats: [['Encaissé', money0(f.summary.revenue)], ['◎ À viser / mois', f.remainingMonths && state.goal ? '<span class="goal-text">' + money0(f.goalRequired) + '</span>' : '—'], ['Résultat projeté', money0(f.projectedNet)]] }) +
       strip(RENDERERS_ORIGINAL.forecast(), ['.grid-2']);
   }
 

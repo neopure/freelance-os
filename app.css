@@ -596,3 +596,53 @@ body.apercu .card::before,body.apercu .module::before,body.apercu .kpi::before,b
 /* Le bandeau démo reste visible en bas de l'écran, quel que soit le défilement. */
 body.demo .demo-banner{position:fixed;left:50%;bottom:24px;z-index:850;transform:translateX(-50%);margin:0;box-shadow:0 12px 30px rgba(0,0,0,.25)}
 @media (max-width:760px){body.demo .demo-banner{bottom:calc(84px + env(safe-area-inset-bottom));width:calc(100% - 32px)}}
+
+/* ---------- Identité « objectif annuel » : bleu saphir + cible ◎ ---------- */
+:root{--goal:#2c63f0;--goal-2:#6aa0ff;--goal-soft:#eef3ff;--goal-line:#cddcff}
+.goal-text{color:var(--goal)}
+.goal-badge{display:inline-grid;place-items:center;width:26px;height:26px;margin-right:9px;border-radius:8px;background:var(--goal);color:#fff;vertical-align:-6px}
+.goal-badge svg{width:15px;height:15px}
+.goal-card{border-color:var(--goal-line);background:linear-gradient(160deg,#fff,var(--goal-soft))}
+.goal-card .facts div{background:rgba(255,255,255,.75);box-shadow:inset 0 0 0 1px var(--goal-line)}
+.goal-card .facts b{color:var(--goal)}
+body.apercu .goal-card{background:linear-gradient(145deg,rgba(255,255,255,.75),rgba(226,236,255,.6));border-color:rgba(205,220,255,.95)}
+.hero.goal{background:linear-gradient(125deg,#1d3fb8,#2c63f0 55%,#5b93ff)}
+.hero.goal .sub b{color:#fff}
+.progress.goal i,.hero .progress.goal i{background:linear-gradient(90deg,#9cc2ff,#fff)}
+.track.goal i{background:linear-gradient(90deg,var(--goal-2),var(--goal))}
+.watch.goal .bar i{background:var(--goal-2)}
+.watch.goal small{color:#aac4ff}
+.pill.goal-ok{background:var(--goal);color:#fff}
+.pill.goal-low{background:var(--goal-soft);color:var(--goal);box-shadow:inset 0 0 0 1px var(--goal-line)}
+.kpi.goal{border-color:var(--goal-line);background:linear-gradient(180deg,#fff,var(--goal-soft))}
+.kpi.goal .label,.kpi.goal .value{color:var(--goal)}
+.module.goal{border-color:var(--goal-line);background:linear-gradient(160deg,#fff,var(--goal-soft))}
+body.apercu .module.goal,body.apercu .kpi.goal{background:linear-gradient(145deg,rgba(255,255,255,.75),rgba(226,236,255,.6));border-color:rgba(205,220,255,.95)}
+.module.goal .module-kicker,.module.goal .module-kicker svg,.module.goal .module-big{color:var(--goal)}
+/* Ligne d'objectif des graphiques : même bleu, mois sous la moyenne visée en bleu pâle. */
+.goal-line{border-top-color:rgba(44,99,240,.55)}
+.goal-line em{color:var(--goal)}
+.goal-line em::before{content:"◎ "}
+.bars .col.low .b{background:linear-gradient(180deg,#b9d0ff,#8fb3ff)}
+.curve .goal{stroke:rgba(44,99,240,.55)}
+.curve .goal-t{fill:var(--goal)}
+.curve circle.low{stroke:var(--goal-2)}
+
+/* ---------- Barre de menu seule au centre, options autour ---------- */
+body.apercu .topbar-in{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;max-width:1320px;padding:0;background:none!important;border:0!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+body.apercu .topbar-in>.brand{justify-self:start}
+body.apercu .topbar .nav{flex:none;justify-self:center;padding:6px;border-radius:20px;
+  background:linear-gradient(145deg,rgba(255,255,255,.74),rgba(255,255,255,.44));-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);
+  border:1px solid rgba(255,255,255,.8);box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 12px 34px rgba(70,35,120,.12);transition:box-shadow .25s}
+body.apercu .topbar.scrolled .nav{box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 18px 44px rgba(70,35,120,.2)}
+body.apercu .topbar .top-actions{justify-self:end;gap:10px}
+body.apercu .topbar .shortcuts{gap:4px;padding:4px;border-radius:14px;background:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.7);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+body.apercu .topbar .shortcut{box-shadow:none}
+body.apercu .topbar .btn.add{box-shadow:0 10px 24px rgba(184,101,238,.35)}
+body.apercu .topbar{padding-top:16px}
+body.apercu .topbar.scrolled{padding-top:10px}
+@media (max-width:1180px){body.apercu .topbar .shortcuts{display:none}}
+@media (max-width:1000px){body.apercu .topbar .btn.add span,body.apercu .topbar .btn.add{font-size:0;gap:0;width:44px;padding:0}body.apercu .topbar .btn.add svg{width:20px;height:20px}}
+@media (max-width:760px){
+  body.apercu .topbar-in{grid-template-columns:1fr auto;padding:6px 6px 6px 12px!important;border-radius:20px;background:linear-gradient(145deg,rgba(255,255,255,.74),rgba(255,255,255,.44))!important;border:1px solid rgba(255,255,255,.8)!important;-webkit-backdrop-filter:blur(22px)!important;backdrop-filter:blur(22px)!important}
+}
