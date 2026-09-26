@@ -672,3 +672,9 @@ body.apercu .topbar.scrolled{padding-top:10px}
 .act-plan{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--line-2)}.act-plan:first-of-type{border-top:0}.act-plan .kind{margin-left:0}
 .event .t .kind{margin-left:8px}
 @media(max-width:560px){.act-line{grid-template-columns:minmax(0,1fr) auto}.act-bar{grid-column:1/-1;grid-row:2}}
+/* Moyenne par activité (page Mois) */
+.acts-note{margin:-4px 0 6px}
+.act-avg{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 14px;align-items:baseline;padding:12px 0;border-top:1px solid var(--line-2)}
+.acts-note+.act-avg{border-top:0}
+.act-avg-fig{text-align:right;white-space:nowrap}.act-avg-fig b{font-size:22px;letter-spacing:-.02em}.act-avg-fig small{margin-left:4px;color:var(--muted);font-size:12px;font-weight:700}
+.act-avg-meta{grid-column:1/-1;color:var(--muted);font-size:12.5px;font-weight:600}

@@ -211,15 +211,28 @@ function barChart(items, goal, opts) {
   }).join('') + '</div>';
 }
 /* CA de l'année par activité, avec ce que l'agenda prévoit d'ici décembre. */
-function activityCard(year) {
+function activityCard(year, detailed) {
   if (!state.activities.length) return '';
-  var rows = C.activityTotals(state, C.monthsOfYear(state, year));
+  var months = C.monthsOfYear(state, year);
+  /* Moyenne sur les mois détaillés par activité : un mois saisi en bloc fausserait le calcul. */
+  var split = months.filter(function (m) { return m.split && Object.keys(m.split).some(function (k) { return k.charAt(0) !== '~'; }); });
+  var rows = C.activityTotals(state, months);
   var now = C.monthKey(), from = now > year + '-12' ? null : (now < year + '-01' ? year + '-01' : now);
   var planned = from && window.FOSAgenda && FOSAgenda.plannedByActivity ? FOSAgenda.plannedByActivity(from, year + '-12') : {};
   rows = rows.filter(function (r) { return r.total || planned[r.activity.id]; }).sort(function (a, b) { return b.total - a.total; });
   if (!rows.length) return '';
   var max = Math.max.apply(null, rows.map(function (r) { return r.total + (planned[r.activity.id] || 0); })) || 1;
   var all = rows.reduce(function (s2, r) { return s2 + r.total; }, 0) || 1;
+  if (detailed) return '<div class="card acts-card"><div class="card-head"><h3>Moyenne par activité · ' + year + '</h3><button class="link" data-action="activities" data-demo-lock>Mes activités</button></div>' +
+    '<p class="note acts-note">Sur ' + split.length + ' mois détaillé' + (split.length > 1 ? 's' : '') + (split.length < months.length ? ' (' + (months.length - split.length) + ' saisi' + (months.length - split.length > 1 ? 's' : '') + ' sans détail)' : '') + '</p>' +
+    rows.map(function (r) {
+      var a = r.activity, vals = split.map(function (m) { return C.num(m.split[a.id]); });
+      var avg = split.length ? vals.reduce(function (x, y) { return x + y; }, 0) / split.length : 0;
+      var best = Math.max.apply(null, vals.concat([0])), active = vals.filter(Boolean).length;
+      return '<div class="act-avg"><span class="act-name"><b>' + esc(a.label) + '</b>' + kindChip(a.kind) + '</span>' +
+        '<span class="act-avg-fig"><b>' + money0(avg) + '</b><small>/ mois</small></span>' +
+        '<span class="act-avg-meta">' + money0(r.total) + ' sur l’année · meilleur mois ' + money0(best) + ' · actif ' + active + '/' + split.length + ' mois</span></div>';
+    }).join('') + '</div>';
   return '<div class="card acts-card"><div class="card-head"><h3>Par activité · ' + year + '</h3><button class="link" data-action="activities" data-demo-lock>Mes activités</button></div>' +
     rows.map(function (r) {
       var a = r.activity, p = planned[a.id] || 0;
@@ -285,7 +298,7 @@ function viewMonths() {
   }).join('');
   return '<div class="stack stagger">' +
     (years.length > 1 ? '<div class="segmented" style="max-width:' + (years.length * 90) + 'px">' + years.map(function (yr) { return '<button type="button" data-months-year="' + yr + '" class="' + (yr === year ? 'on' : '') + '">' + yr + '</button>'; }).join('') + '</div>' : '') +
-    '<div class="months-sum"><div><span class="label">Encaissé ' + year + '</span><b>' + n(y.revenue) + '</b></div><div><span class="label">Dans ta poche</span><b class="pos">' + n(y.pocket) + '</b></div><div><span class="label">Moyenne / mois</span><b>' + n(y.average) + '</b></div><div><span class="label">URSSAF</span><b>' + n(y.urssaf) + '</b></div></div>' + activityCard(year) +
+    '<div class="months-sum"><div><span class="label">Encaissé ' + year + '</span><b>' + n(y.revenue) + '</b></div><div><span class="label">Dans ta poche</span><b class="pos">' + n(y.pocket) + '</b></div><div><span class="label">Moyenne / mois</span><b>' + n(y.average) + '</b></div><div><span class="label">URSSAF</span><b>' + n(y.urssaf) + '</b></div></div>' + activityCard(year, true) +
     '<div class="card mlist"><div class="legend"><span><i class="seg-poche"></i>Dans ta poche</span><span><i class="seg-urssaf"></i>URSSAF</span><span><i class="seg-pro"></i>Charges pro</span><span><i class="seg-perso"></i>Charges perso</span></div>' + rows + '</div>' +
   '</div>';
 }
