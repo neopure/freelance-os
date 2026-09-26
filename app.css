@@ -593,3 +593,6 @@ body.apercu .majestic+.stack{margin-top:6px}
 body.apercu .card,body.apercu .module,body.apercu .kpi,body.apercu .table{isolation:isolate}
 body.apercu .card::before,body.apercu .module::before,body.apercu .kpi::before,body.apercu .table::before{z-index:-1}
 .topbar .nav button .l-full,.topbar .nav button.on .l-full{display:none!important}
+/* Le bandeau démo reste visible en bas de l'écran, quel que soit le défilement. */
+body.demo .demo-banner{position:fixed;left:50%;bottom:24px;z-index:850;transform:translateX(-50%);margin:0;box-shadow:0 12px 30px rgba(0,0,0,.25)}
+@media (max-width:760px){body.demo .demo-banner{bottom:calc(84px + env(safe-area-inset-bottom));width:calc(100% - 32px)}}
