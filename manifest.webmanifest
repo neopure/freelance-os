@@ -4,10 +4,11 @@
   "description": "Pilotage financier personnel et professionnel.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#151626",
+  "background_color": "#2a1866",
   "theme_color": "#151626",
   "icons": [
-    { "src": "app-icon-logo-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
-    { "src": "app-icon-logo-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "app-icon-round-180.png?v=3", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "app-icon-logo-512.png?v=3", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "app-icon-maskable-512.png?v=3", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

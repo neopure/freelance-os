@@ -395,7 +395,7 @@
     var known = session().email;
     var gate = document.createElement('div');
     gate.className = 'fos-gate';
-    gate.innerHTML = '<div class="fos-gate-card"><img src="app-icon-logo-180.png" alt=""><h1>Freelance OS</h1>' +
+    gate.innerHTML = '<div class="fos-gate-card"><img src="app-icon-round-180.png?v=3" alt=""><h1>Freelance OS</h1>' +
       '<button class="fos-google" type="button" data-fos-signin>' + GOOGLE_G + '<span>' + (known ? 'Continuer avec ' + esc(known) : 'Se connecter avec Google') + '</span></button>' +
       '<p class="fos-gate-status" data-fos-gate-status></p>' +
       (known ? '<button class="fos-gate-switch" type="button" data-fos-switch>Utiliser un autre compte</button>' : '') + '</div>';
