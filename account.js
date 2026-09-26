@@ -106,7 +106,13 @@
   function api(path, options, token) {
     options = options || {};
     options.headers = Object.assign({}, options.headers, { Authorization: 'Bearer ' + (token || session().token) });
-    return fetch('https://www.googleapis.com/' + path, options).then(function (response) {
+    /* Un réseau mobile qui ne répond plus ne doit jamais figer la connexion. */
+    var ctrl = !options.keepalive && window.AbortController ? new AbortController() : null, timer;
+    if (ctrl) { options.signal = ctrl.signal; timer = setTimeout(function () { ctrl.abort(); }, 30000); }
+    return fetch('https://www.googleapis.com/' + path, options).catch(function (error) {
+      throw new Error(error && error.name === 'AbortError' ? 'Google Drive ne répond pas. Réessaie.' : 'Connexion réseau impossible. Réessaie.');
+    }).then(function (response) {
+      if (timer) clearTimeout(timer);
       if (response.status === 401) { expire(); throw new Error('Session Google expirée.'); }
       if (!response.ok) throw new Error('Google Drive indisponible (' + response.status + ').');
       return response;
@@ -359,7 +365,7 @@
     var node = document.createElement('style');
     node.id = 'fos-account-style';
     node.textContent =
-      'html.fos-locked body>*:not(.fos-gate){visibility:hidden!important}' +
+      'html.fos-locked body>*:not(.fos-gate):not(.fos-overlay){visibility:hidden!important}' +
       '.fos-gate{position:fixed;inset:0;z-index:100000;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 30% 20%,#3a2358 0%,#151626 60%)}' +
       '.fos-gate-card{width:min(400px,100%);padding:34px 28px;border-radius:26px;background:#fff;color:#17162a;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.35)}' +
       '.fos-gate-card img{width:72px;height:72px;border-radius:18px}.fos-gate-card h1{margin:16px 0 22px;font-size:26px}' +
@@ -369,7 +375,7 @@
       '.fos-account-trigger{position:relative;width:44px;height:44px;padding:0;border:1px solid #e9dcef;border-radius:14px;background:#fff center/cover;color:#5e53c9;font-size:17px;font-weight:800;cursor:pointer;box-shadow:0 8px 22px rgba(51,35,99,.11)}' +
       '.fos-account-trigger i{position:absolute;right:-3px;bottom:-3px;width:12px;height:12px;border:2px solid #fff;border-radius:50%;background:#2bb8a0}' +
       '.fos-account-trigger.dirty i{background:#e0a100}.fos-account-trigger.error i{background:#e5484d}' +
-      '.fos-overlay{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:20px;background:rgba(17,14,34,.48)}' +
+      '.fos-overlay{position:fixed;inset:0;z-index:100001;display:grid;place-items:center;padding:20px;background:rgba(17,14,34,.48)}' +
       '.fos-panel{width:min(420px,100%);padding:26px;border-radius:24px;background:#fff;color:#17162a;box-shadow:0 30px 80px rgba(0,0,0,.28)}' +
       '.fos-panel h2{margin:0 0 4px;font-size:22px}.fos-panel p{margin:0;color:#6f6b7e;font-size:14px}' +
       '.fos-sync{margin:16px 0;padding:12px 14px;border-radius:12px;background:#e7fbf8;color:#117f80;font-size:14px}.fos-sync.dirty{background:#fff7e0;color:#8a6200}.fos-sync.error{background:#fff0f4;color:#b33268}' +
