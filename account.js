@@ -29,8 +29,9 @@
   function setMeta(patch) { write(META_KEY, Object.assign(meta(), patch)); paintStatus(); }
   function tokenValid(s) { return !!(s && s.token && s.email && s.expiresAt > Date.now() + 60000); }
 
-  /* Tant qu'aucun compte n'est ouvert, l'app reste masquée derrière l'écran de connexion. */
-  if (!tokenValid(session())) document.documentElement.classList.add('fos-locked');
+  /* Tant qu'aucun compte n'est ouvert, l'app reste masquée derrière l'écran de connexion.
+     Un jeton simplement expiré ne verrouille pas : il se renouvelle au premier clic. */
+  (function () { var s = session(); if (!(s.token && s.email)) document.documentElement.classList.add('fos-locked'); }());
 
   function snapshot() {
     var values = {};
@@ -223,6 +224,29 @@
       ask('Sauvegarde Drive impossible', 'Te déconnecter effacera les dernières modifications de cet appareil.', 'Me déconnecter').then(function (ok) { if (ok) done(); });
     });
   }
+  /* Le jeton Google dure une heure. On le renouvelle au premier geste dans l'app,
+     sans rechargement : la fenêtre Google s'ouvre et se ferme seule. */
+  var renewing = null, renewFailed = false;
+  function renew() {
+    if (renewing) return renewing;
+    var s = session();
+    renewing = requestToken(false).then(function (granted) {
+      return api('oauth2/v3/userinfo', {}, granted.access_token).then(function (r) { return r.json(); }).then(function (user) {
+        if (user.email !== s.email) throw new Error('Autre compte Google');
+        write(SESSION_KEY, Object.assign({}, session(), { token: granted.access_token, expiresAt: Date.now() + (Number(granted.expires_in) || 3600) * 1000 }));
+        renewFailed = false;
+        paintStatus();
+        return pull();
+      });
+    }).then(function () { if (meta().dirty) return push(); }).catch(function () { renewFailed = true; paintStatus(); })
+      .then(function () { renewing = null; });
+    return renewing;
+  }
+  function renewOnGesture() {
+    if (renewing || renewFailed || document.documentElement.classList.contains('fos-locked')) return;
+    var s = session();
+    if (s.email && s.token && s.expiresAt < Date.now() + 5 * 60000) renew();
+  }
   function expire() {
     var s = session();
     s.expiresAt = 0;
@@ -394,6 +418,7 @@
   }
   function statusInfo() {
     var m = meta();
+    if (!tokenValid(session()) && !renewFailed) return { kind: m.dirty ? 'dirty' : '', text: 'Reconnexion automatique au prochain clic' };
     if (!tokenValid(session())) return { kind: 'error', text: m.dirty ? 'Session expirée · modifications pas encore dans Drive' : 'Session expirée' };
     if (m.error) return { kind: 'error', text: 'Échec de la sauvegarde Drive' };
     if (m.dirty || m.syncing) return { kind: 'dirty', text: 'Sauvegarde en cours…' };
@@ -410,12 +435,12 @@
       node.className = 'fos-sync ' + info.kind;
     });
     var banner = document.querySelector('.fos-banner');
-    var expired = document.documentElement.classList.contains('fos-locked') ? false : !tokenValid(session());
+    var expired = document.documentElement.classList.contains('fos-locked') ? false : !tokenValid(session()) && renewFailed;
     if (expired && !banner && document.body) {
       banner = document.createElement('div');
       banner.className = 'fos-banner';
       banner.innerHTML = '<span>Session Google expirée</span><button type="button">Se reconnecter</button>';
-      banner.querySelector('button').onclick = function () { signIn(false).catch(function (e) { notify(e.message); }); };
+      banner.querySelector('button').onclick = function () { renewFailed = false; renew().then(function () { if (renewFailed) signIn(false).catch(function (e) { notify(e.message); }); }); };
       document.body.appendChild(banner);
     } else if (!expired && banner) banner.remove();
   }
@@ -471,6 +496,9 @@
     if (!mountButton()) { window.setTimeout(mountButton, 400); window.setTimeout(mountButton, 1400); }
     paintStatus();
     pull();
+    loadGis().catch(function () {});
+    document.addEventListener('pointerdown', renewOnGesture, true);
+    document.addEventListener('keydown', renewOnGesture, true);
     /* Quitter l'app ou passer à une autre : on envoie tout de suite ce qui reste. */
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'hidden' && meta().dirty) { window.clearTimeout(pushTimer); push(true).catch(function () {}); }
