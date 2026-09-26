@@ -793,3 +793,32 @@ window.addEventListener('storage', function (e) {
 mountShell();
 render();
 
+/* Correctif ponctuel du compte d'Axel : le SACEM non détaillé revient à Loadjaxx, le CDD non détaillé à sa seule activité CDD.
+   Totaux inchangés. À retirer une fois appliqué. */
+function sacemToLoadjaxx() {
+  var acc = window.FreelanceOSAccount;
+  if (state.demoMode || state.loadjaxxSacem || !acc || acc.email() !== 'axelbertran@gmail.com') return;
+  var meta = {}; try { meta = JSON.parse(localStorage.getItem('freelance-os-sync-v3') || '{}'); } catch (_) {}
+  if (meta.dirty || meta.syncing) return;
+  var only = function (kind, re) { var l = state.activities.filter(function (a) { return a.kind === kind && (!re || re.test(a.label)); }); return l.length === 1 ? l[0] : null; };
+  var target = { sacem: only('sacem', /load\s*jaxx/i), cdd: only('cdd') };
+  if (!target.sacem) return;
+  var left = [];
+  state.months.forEach(function (m) {
+    m.split = m.split || {};
+    var fresh = !Object.keys(m.split).length;
+    var known = C.splitTotals(state, Object.assign({}, m.split, { '~bnc': 0, '~bic': 0, '~cdd': 0, '~sacem': 0 }), m.kinds);
+    Object.keys(C.KINDS).forEach(function (k) {
+      var rest = Math.round((m[k] - known[k]) * 100) / 100;
+      delete m.split['~' + k];
+      if (rest <= 0) return;
+      if (target[k]) m.split[target[k].id] = C.num(m.split[target[k].id]) + rest;
+      else { m.split['~' + k] = rest; left.push(monthName(m.month) + ' ' + C.KINDS[k] + ' ' + money(rest)); }
+    });
+    if (fresh && !Object.keys(m.split).length) delete m.split;
+  });
+  state.loadjaxxSacem = true;
+  save(); render();
+  toast(left.length ? 'Encore non détaillé : ' + left.join(', ') : 'Plus aucun montant non détaillé');
+}
+setTimeout(sacemToLoadjaxx, 4000);
