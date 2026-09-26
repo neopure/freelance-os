@@ -2,7 +2,7 @@
   'use strict';
 
   const STORAGE_KEY = 'freelance-os-agenda-previsions-v1';
-  const GOOGLE_CLIENT_ID = '368626541227-mbk5skk95tonks4of8504vl0hfm2jscf.apps.googleusercontent.com';
+  const GOOGLE_CLIENT_ID = '484675980833-78aqn94e5nu13de8gg2slatt7id2rhbj.apps.googleusercontent.com';
   const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
   const money = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
   const uid = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);

@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  var CLIENT_ID = '368626541227-mbk5skk95tonks4of8504vl0hfm2jscf.apps.googleusercontent.com';
+  var CLIENT_ID = '484675980833-78aqn94e5nu13de8gg2slatt7id2rhbj.apps.googleusercontent.com';
   var SCOPE = 'openid email profile https://www.googleapis.com/auth/drive.appdata';
   var FILE_NAME = 'freelance-os-private-state.json';
   var DATA_KEYS = ['neopure-finance-v1', 'freelance-os-agenda-previsions-v1'];
