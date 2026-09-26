@@ -5,6 +5,8 @@
 
   var KEY = 'neopure-finance-v1';
   var MONTH_FIELDS = ['bnc', 'bic', 'other', 'cdd', 'sacem', 'pocket', 'variable', 'personal', 'invest', 'vatCollected', 'vatDeduct', 'lastYear'];
+  /* Chaque activité déclarée alimente une case de la déclaration. */
+  var KINDS = { bnc: 'BNC', bic: 'BIC', cdd: 'Salaire', sacem: 'SACEM' };
   var DEFAULT_SHORTCUTS = [
     { label: 'URSSAF', url: 'https://www.autoentrepreneur.urssaf.fr/portail/accueil.html', icon: '↗' },
     { label: 'Indy', url: 'https://www.indy.fr/', icon: '↗' },
@@ -38,7 +40,12 @@
     s.bncTaxRate = finite(s.bncTaxRate, 0);
     s.bicTaxRate = finite(s.bicTaxRate, 0);
     s.cfpRate = finite(s.cfpRate, 0.1);
-    s.cciRate = finite(s.cciRate, 0.04);
+    s.cciRate = finite(s.cciRate, 0.044);
+    /* Taxe CCI : 0,044 % du CA BIC de prestations, le BNC n'y est pas soumis. */
+    if (!s.cciMigrated) { if (s.cciRate === 0.04) s.cciRate = 0.044; s.cciMigrated = true; }
+    s.activities = (Array.isArray(s.activities) ? s.activities : []).filter(function (a) { return a && KINDS[a.kind]; }).map(function (a) {
+      return { id: a.id || uid(), label: String(a.label || 'Activité'), kind: a.kind };
+    });
     s.urssafLagMonths = finite(s.urssafLagMonths, 2);
     s.fixed = (Array.isArray(s.fixed) ? s.fixed : []).map(function (f) {
       return Object.assign({}, f, { id: f.id || uid(), label: f.label || 'Charge', amount: num(f.amount), category: f.category || 'Autre charge fixe', scope: f.scope || 'pro', frequency: f.frequency || 'monthly' });
@@ -49,6 +56,8 @@
       out.month = m.month || m.id;
       out.id = out.month;
       MONTH_FIELDS.forEach(function (k) { out[k] = num(m[k]); });
+      out.split = {};
+      if (m.split && typeof m.split === 'object') Object.keys(m.split).forEach(function (k) { if (num(m.split[k])) out.split[k] = num(m.split[k]); });
       return out;
     });
     /* Ancienne saisie : « autres recettes » a été fusionné dans le CDD. */
@@ -90,7 +99,7 @@
     var bncContribution = Math.round(m.bnc * state.bncTaxRate / 100);
     var bicContribution = Math.round(m.bic * state.bicTaxRate / 100);
     var cfpContribution = Math.round(micro * state.cfpRate / 100);
-    var cciContribution = Math.round(micro * state.cciRate / 100);
+    var cciContribution = Math.round(m.bic * state.cciRate / 100);
     var urssaf = bncContribution + bicContribution + cfpContribution + cciContribution;
     var revenue = m.bnc + m.bic + m.other + m.cdd + m.sacem;
     var expenses = fixedTotal(state, 'pro') + m.variable + m.invest;
@@ -102,6 +111,17 @@
       bncContribution: bncContribution, bicContribution: bicContribution, cfpContribution: cfpContribution, cciContribution: cciContribution,
       urssaf: urssaf, net: net, pocket: net - personal
     };
+  }
+  /* Montant saisi par activité ; « ~bnc » garde la part d'une case non rattachée à une activité. */
+  function splitTotals(state, split) {
+    var t = {}; Object.keys(KINDS).forEach(function (k) { t[k] = num(split['~' + k]); });
+    state.activities.forEach(function (a) { t[a.kind] += num(split[a.id]); });
+    return t;
+  }
+  function activityTotals(state, months) {
+    return state.activities.map(function (a) {
+      return { activity: a, total: sum(months, function (m) { return num(m.split && m.split[a.id]); }) };
+    });
   }
   function monthsOfYear(state, year) { return state.months.filter(function (m) { return m.month.slice(0, 4) === String(year); }); }
   function years(state) {
@@ -271,6 +291,7 @@
 
   var api = {
     KEY: KEY, MONTH_FIELDS: MONTH_FIELDS, num: num, uid: uid, monthKey: monthKey, emptyMonth: emptyMonth,
+    KINDS: KINDS, splitTotals: splitTotals, activityTotals: activityTotals,
     normalize: normalize, sortMonths: sortMonths, load: load, persist: persist,
     monthlyAmount: monthlyAmount, fixedTotal: fixedTotal, calc: calc, monthsOfYear: monthsOfYear, years: years,
     yearSummary: yearSummary, threshold: threshold, urssafUpcoming: urssafUpcoming, forecast: forecast,

@@ -315,7 +315,7 @@ function viewFiscal() {
     (state.vatEnabled
       ? '<div class="grid-2"><div><span class="label">À provisionner · ' + esc(m ? monthName(m.month) : '') + '</span><span class="value">' + n(m ? m.vatCollected : 0) + '</span></div><div><span class="label">Cumul ' + year + '</span><span class="value">' + n(C.yearSummary(state, year).vat) + '</span></div></div>'
       : '<span class="label">Franchise en base de TVA</span><span class="value" style="color:var(--faint)">Inactive</span>') + '</div>';
-  var rates = '<div class="card"><div class="card-head"><h3>Taux</h3><button class="btn quiet" data-action="fiscal-settings" data-demo-lock>Réglages</button></div>' +
+  var rates = '<div class="card"><div class="card-head"><h3>Taux</h3><button class="btn quiet" data-action="activities" data-demo-lock>Activités</button><button class="btn quiet" data-action="fiscal-settings" data-demo-lock>Réglages</button></div>' +
     '<div class="facts"><div><span class="label">BNC</span><b>' + rate(state.bncTaxRate) + '</b></div><div><span class="label">BIC</span><b>' + rate(state.bicTaxRate) + '</b></div><div><span class="label">CFP + CCI</span><b>' + rate(state.cfpRate + state.cciRate) + '</b></div></div></div>';
   var cols = 'minmax(110px,1.2fr) repeat(5,minmax(0,1fr))';
   var months = C.monthsOfYear(state, year);
@@ -416,7 +416,7 @@ function openMonth(id) {
   var nextKey = latest ? C.monthKey(new Date(+latest.month.slice(0, 4), +latest.month.slice(5, 7), 1)) : C.monthKey();
   var m = existing || C.emptyMonth(nextKey);
   var body = '<div class="fields">' + FOSUI.monthField('month', 'Mois', m.month, true) + '</div>' +
-    '<div class="group">Recettes</div><div class="fields">' + field('bnc', 'CA BNC', m.bnc) + field('bic', 'CA BIC / DJ', m.bic) + field('cdd', 'Salaire / CDD', m.cdd) + field('sacem', 'Droits SACEM', m.sacem) + '</div>' +
+    '<div class="group group-link">Recettes<button type="button" class="link" data-acts>' + (state.activities.length ? 'Mes activités' : 'Détailler par activité') + '</button></div>' + revenueFields(m) +
     '<div class="group">Dépenses du mois</div><div class="fields">' + field('variable', 'Dépenses pro', m.variable) + field('invest', 'Achat / investissement pro', m.invest) + field('personal', 'Dépenses perso', m.personal, { full: true }) + '</div>' +
     (state.vatEnabled ? '<div class="group">TVA</div><div class="fields">' + field('vatCollected', 'TVA à provisionner', m.vatCollected, { full: true }) + '</div>' : '') +
     '<div class="group">Comparaison</div><div class="fields">' + field('lastYear', 'Recettes du même mois N-1', m.lastYear, { full: true }) + '</div>';
@@ -424,13 +424,28 @@ function openMonth(id) {
   openSheet(existing ? monthName(m.month) : 'Nouveau mois', body, foot, function (form) {
     var read = function () {
       var d = Object.assign(C.emptyMonth(form.elements.month.value || m.month), m);
-      ['bnc', 'bic', 'cdd', 'sacem', 'variable', 'invest', 'personal', 'lastYear'].forEach(function (k) { d[k] = val(form, k); });
+      ['variable', 'invest', 'personal', 'lastYear'].forEach(function (k) { d[k] = val(form, k); });
+      if (state.activities.length) {
+        d.split = {};
+        state.activities.forEach(function (a) { if (val(form, 'act-' + a.id)) d.split[a.id] = val(form, 'act-' + a.id); });
+        Object.keys(C.KINDS).forEach(function (k) { if (val(form, 'rest-' + k)) d.split['~' + k] = val(form, 'rest-' + k); });
+        var t = C.splitTotals(state, d.split);
+        Object.keys(C.KINDS).forEach(function (k) { d[k] = t[k]; });
+      } else {
+        ['bnc', 'bic', 'cdd', 'sacem'].forEach(function (k) { d[k] = val(form, k); });
+        d.split = {};
+      }
       d.vatCollected = state.vatEnabled ? val(form, 'vatCollected') : 0;
       d.vatDeduct = 0; d.other = 0; d.pocket = 0;
       d.month = d.id = form.elements.month.value;
       return d;
     };
-    var preview = function () { q('[data-preview]', form).textContent = money(C.calc(state, read()).pocket); };
+    var preview = function () {
+      var d = read(); q('[data-preview]', form).textContent = money(C.calc(state, d).pocket);
+      var sum = q('[data-kind-sum]', form);
+      if (sum) sum.innerHTML = Object.keys(C.KINDS).filter(function (k) { return d[k]; }).map(function (k) { return '<span class="kind k-' + k + '">' + C.KINDS[k] + '</span> ' + money(d[k]); }).join('<i></i>') || 'Aucune recette';
+    };
+    q('[data-acts]', form).onclick = function () { var back = existing ? existing.id : null; closeSheet(); openActivities(function () { openMonth(back); }); };
     form.addEventListener('input', preview); preview();
     form.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -455,6 +470,93 @@ function openMonth(id) {
         closeSheet(); render(); toast('Mois supprimé');
       });
     };
+  });
+}
+
+/* ---------- Activités : chacune alimente une case de la déclaration ---------- */
+function kindChip(k) { return '<span class="kind k-' + k + '">' + C.KINDS[k] + '</span>'; }
+function revenueFields(m) {
+  if (!state.activities.length) return '<div class="fields">' + field('bnc', 'CA BNC', m.bnc) + field('bic', 'CA BIC', m.bic) + field('cdd', 'Salaire / CDD', m.cdd) + field('sacem', 'Droits SACEM', m.sacem) + '</div>';
+  var split = m.split || {}, known = C.splitTotals(state, Object.assign({}, split, { '~bnc': 0, '~bic': 0, '~cdd': 0, '~sacem': 0 }));
+  var html = state.activities.map(function (a) { return field('act-' + a.id, esc(a.label) + kindChip(a.kind), C.num(split[a.id])); }).join('');
+  /* Une somme saisie avant le détail par activité reste visible, rattachée à sa case. */
+  Object.keys(C.KINDS).forEach(function (k) {
+    var rest = Math.round((m[k] - known[k]) * 100) / 100;
+    if (rest > 0) html += field('rest-' + k, 'Non détaillé' + kindChip(k), rest);
+  });
+  return '<div class="fields acts">' + html + '</div><div class="kind-sum" data-kind-sum></div>';
+}
+var KIND_OPTIONS = [['bnc', 'BNC'], ['bic', 'BIC'], ['cdd', 'Salaire'], ['sacem', 'SACEM']];
+function activityRow(a, i) {
+  a = a || { id: '', label: '', kind: 'bnc' };
+  return '<div class="act-row" data-act="' + esc(a.id) + '"><input name="act-label-' + i + '" type="text" value="' + esc(a.label) + '" placeholder="Ex. DJ, tournages, renfort bar…" aria-label="Nom de l’activité">' +
+    '<input type="hidden" name="act-kind-' + i + '" value="' + a.kind + '"><div class="segmented small" data-seg="act-kind-' + i + '">' +
+    KIND_OPTIONS.map(function (o) { return '<button type="button" data-v="' + o[0] + '" class="' + (o[0] === a.kind ? 'on' : '') + '">' + o[1] + '</button>'; }).join('') + '</div>' +
+    '<button type="button" class="act-del" data-act-del aria-label="Retirer">×</button></div>';
+}
+function activityEditor(list) {
+  var rows = (list.length ? list : [null, null]).map(activityRow).join('');
+  return '<div class="act-list" data-act-list>' + rows + '</div><button type="button" class="btn quiet act-add" data-act-add>+ Ajouter une activité</button>';
+}
+/* Suggestion de case d'après le nom : le type reste toujours à confirmer, un choix manuel n'est jamais écrasé. */
+var KIND_HINTS = [
+  ['sacem', /sacem|droits? d.?auteur|royalt/],
+  ['cdd', /\bcdd\b|salari|intermitt|int[ée]rim|\bextras?\b|cdi\b|fiche de paie/],
+  ['bnc', /\bdj\b|mix|platin/],
+  ['bic', /vente|boutique|e-?commerce|revente|location|h[ée]bergement|g[iî]te|restaura|traiteur|\bbar\b|serveu|barman|barmaid|animation|sono|artisan|livraison|renfort/],
+  ['bnc', /conseil|consult|strat[ée]g|marketing|communication|formation|coach|r[ée]daction|graphi|design|d[ée]velopp|montage|tournage|vid[ée]o|film|photo|contenu|community|social media|\bdj\b|musi|artiste|cr[ée]ation/]
+];
+function suggestKind(label) {
+  var t = String(label).toLowerCase();
+  for (var i = 0; i < KIND_HINTS.length; i++) if (KIND_HINTS[i][1].test(t)) return KIND_HINTS[i][0];
+  return null;
+}
+function bindActivityEditor(form) {
+  var box = q('[data-act-list]', form), n = box.children.length;
+  box.addEventListener('click', function (e) { if (e.target.closest('[data-seg] button')) e.target.closest('.act-row').dataset.manual = '1'; });
+  box.addEventListener('input', function (e) {
+    var row = e.target.closest('.act-row');
+    if (!row || e.target.type !== 'text' || row.dataset.manual || row.dataset.act) return;
+    var k = suggestKind(e.target.value);
+    if (k) { var b = row.querySelector('[data-v="' + k + '"]'); if (b && !b.classList.contains('on')) { row.querySelectorAll('[data-seg] button').forEach(function (x) { x.classList.toggle('on', x === b); }); row.querySelector('input[type=hidden]').value = k; } }
+  });
+  q('[data-act-add]', form).onclick = function () { box.insertAdjacentHTML('beforeend', activityRow(null, n++)); box.lastChild.querySelector('input').focus(); };
+  box.addEventListener('click', function (e) { var d = e.target.closest('[data-act-del]'); if (d) d.parentElement.remove(); });
+}
+function readActivities(form) {
+  return Array.prototype.map.call(form.querySelectorAll('.act-row'), function (row) {
+    var label = row.querySelector('input[type=text]').value.trim();
+    return label ? { id: row.dataset.act || C.uid(), label: label, kind: row.querySelector('input[type=hidden]').value } : null;
+  }).filter(Boolean);
+}
+/* Enregistre la liste : une activité retirée laisse ses montants dans sa case, les totaux suivent le type choisi. */
+function applyActivities(list) {
+  var ids = {}; list.forEach(function (a) { ids[a.id] = a; });
+  state.months.forEach(function (m) {
+    if (!m.split || !Object.keys(m.split).length) return;
+    state.activities.forEach(function (old) {
+      if (!ids[old.id] && m.split[old.id]) { m.split['~' + old.kind] = C.num(m.split['~' + old.kind]) + m.split[old.id]; delete m.split[old.id]; }
+    });
+  });
+  state.activities = list;
+  state.months.forEach(function (m) {
+    if (!m.split || !Object.keys(m.split).length) return;
+    var t = C.splitTotals(state, m.split);
+    Object.keys(C.KINDS).forEach(function (k) { m[k] = t[k]; });
+  });
+  if (list.some(function (a) { return a.kind === 'bnc'; }) && !state.bncTaxRate) state.bncTaxRate = 25.6;
+  if (list.some(function (a) { return a.kind === 'bic'; }) && !state.bicTaxRate) state.bicTaxRate = 21.2;
+}
+function openActivities(after) {
+  var body = '<p class="sheet-note">Chaque activité apparaît dans la saisie du mois et compte dans la bonne case : BNC, BIC, salaire ou SACEM.</p>' + activityEditor(state.activities);
+  openSheet('Mes activités', body, '<span class="preview"></span><button class="btn" type="submit">Enregistrer</button>', function (form) {
+    bindActivityEditor(form);
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      applyActivities(readActivities(form));
+      save(); closeSheet(); render(); toast('Activités enregistrées');
+      if (after) after();
+    });
   });
 }
 
@@ -587,6 +689,7 @@ function importBricks() {
 /* ---------- Actions ---------- */
 var ACTIONS = {
   'new-month': function () { openMonth(null); },
+  'activities': function () { openActivities(); },
   'edit-month': function (el) { openMonth(el.dataset.id); },
   'new-fixed': function () { openFixed(null); },
   'edit-fixed': function (el) { openFixed(el.dataset.id); },
@@ -610,7 +713,7 @@ var ACTIONS = {
   }
 };
 function setDemo(on) { state.demoMode = !!on; save(); ui.animate = true; render(); }
-window.FreelanceOS = { toggleDemo: function () { setDemo(!state.demoMode); }, isDemo: function () { return !!state.demoMode; } };
+window.FreelanceOS = { openActivities: function () { openActivities(); }, toggleDemo: function () { setDemo(!state.demoMode); }, isDemo: function () { return !!state.demoMode; } };
 
 document.addEventListener('change', function (e) {
   if (e.target.matches('[data-action=bricks-rate]')) {

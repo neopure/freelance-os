@@ -50,8 +50,6 @@
     if (!ready() || document.querySelector('.fos-ob')) return;
     style();
     var first = !state.onboardingDone;
-    var bnc = first ? true : state.bncTaxRate > 0;
-    var bic = first ? false : state.bicTaxRate > 0;
     var fixedById = {};
     (state.fixed || []).forEach(function (f) { fixedById[f.id] = f; });
     var rows = CHARGES.map(function (c) {
@@ -63,9 +61,7 @@
     var overlay = document.createElement('div');
     overlay.className = 'fos-ob';
     overlay.innerHTML = '<form class="fos-ob-card" novalidate><div class="fos-ob-dots"><i></i><i></i><i></i><i></i></div>' +
-      '<section class="fos-ob-step"><h2>Ton activité</h2>' +
-        '<label class="fos-ob-choice"><input type="checkbox" name="bnc"' + (bnc ? ' checked' : '') + '><span>Prestations de services<small>Micro BNC</small></span></label>' +
-        '<label class="fos-ob-choice"><input type="checkbox" name="bic"' + (bic ? ' checked' : '') + '><span>Vente ou prestations commerciales<small>Micro BIC</small></span></label></section>' +
+      '<section class="fos-ob-step"><h2>Tes activités</h2><p class="sheet-note">Nomme chaque activité et choisis la case où tu la déclares. Elles apparaîtront dans la saisie de chaque mois.</p>' + activityEditor(state.activities) + '</section>' +
       '<section class="fos-ob-step"><h2>La TVA</h2>' +
         '<label class="fos-ob-choice"><input type="radio" name="vat" value="no"' + (!state.vatEnabled ? ' checked' : '') + '><span>Je ne facture pas la TVA<small>Franchise en base</small></span></label>' +
         '<label class="fos-ob-choice"><input type="radio" name="vat" value="yes"' + (state.vatEnabled ? ' checked' : '') + '><span>Je facture la TVA</span></label></section>' +
@@ -84,6 +80,7 @@
     var back = form.querySelector('[data-ob-back]');
     var next = form.querySelector('[data-ob-next]');
     var index = 0;
+    bindActivityEditor(form);
     function show(i) {
       index = i;
       steps.forEach(function (s, n) { s.classList.toggle('on', n === i); });
@@ -94,7 +91,6 @@
     show(0);
     back.onclick = function () { show(Math.max(0, index - 1)); };
     next.onclick = function () {
-      if (index === 0 && !form.bnc.checked && !form.bic.checked) { form.bnc.checked = true; }
       if (index < steps.length - 1) return show(index + 1);
       apply(form);
       overlay.remove();
@@ -106,7 +102,9 @@
   }
 
   function apply(form) {
-    var hasBnc = form.bnc.checked, hasBic = form.bic.checked;
+    var list = readActivities(form);
+    var hasBnc = !list.length || list.some(function (a) { return a.kind === 'bnc'; }), hasBic = list.some(function (a) { return a.kind === 'bic'; });
+    applyActivities(list);
     /* Les taux ne sont remis à leur valeur type que si l'activité change : un taux ajusté à la main est conservé. */
     state.bncTaxRate = hasBnc ? (state.bncTaxRate > 0 ? state.bncTaxRate : RATES.bnc) : 0;
     state.bicTaxRate = hasBic ? (state.bicTaxRate > 0 ? state.bicTaxRate : RATES.bic) : 0;

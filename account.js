@@ -427,7 +427,7 @@
     overlay.innerHTML = '<section class="fos-panel" role="dialog" aria-modal="true"><h2>' + esc(s.name || 'Mon compte') + '</h2><p>' + esc(s.email) + '</p>' +
       '<div data-fos-sync class="fos-sync"></div><div class="fos-panel-actions">' +
       '<button class="primary" data-act="sync">Synchroniser maintenant</button><button data-act="export">Exporter mes données</button>' +
-      '<button data-act="setup">Réglages de départ</button>' + (window.FreelanceOS ? '<button data-act="demo">' + (window.FreelanceOS.isDemo() ? 'Quitter le mode démo' : 'Mode démo') + '</button>' : '') + '<button data-act="import">Importer un fichier</button><button class="quiet" data-act="logout">Se déconnecter</button></div>' +
+      '<button data-act="activities">Mes activités</button><button data-act="setup">Réglages de départ</button>' + (window.FreelanceOS ? '<button data-act="demo">' + (window.FreelanceOS.isDemo() ? 'Quitter le mode démo' : 'Mode démo') + '</button>' : '') + '<button data-act="import">Importer un fichier</button><button class="quiet" data-act="logout">Se déconnecter</button></div>' +
       '<input type="file" accept="application/json,.json" hidden></section>';
     document.body.appendChild(overlay);
     paintStatus();
@@ -440,6 +440,7 @@
     };
     var demo = overlay.querySelector('[data-act="demo"]');
     if (demo) demo.onclick = function () { overlay.remove(); window.FreelanceOS.toggleDemo(); };
+    overlay.querySelector('[data-act="activities"]').onclick = function () { overlay.remove(); if (window.FreelanceOS && window.FreelanceOS.openActivities) window.FreelanceOS.openActivities(); };
     overlay.querySelector('[data-act="setup"]').onclick = function () { overlay.remove(); if (window.FreelanceOSOnboarding) window.FreelanceOSOnboarding.open(); };
     overlay.querySelector('[data-act="export"]').onclick = exportFile;
     overlay.querySelector('[data-act="import"]').onclick = function () { input.click(); };
