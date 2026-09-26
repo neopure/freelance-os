@@ -83,22 +83,22 @@
     style.textContent = `
       #agenda-forecast { max-width: 1280px; margin: 0 auto; padding: 0 0 80px; color: #171629; }
       #agenda-forecast * { box-sizing: border-box; }
-      .agenda-hero { position: relative; overflow: hidden; padding: 32px; border-radius: 26px; background: linear-gradient(125deg,#171629 0%,#32214c 62%,#6b3f83 100%); color: white; box-shadow: 0 18px 46px rgba(38,24,68,.18); }
+      .agenda-hero { position: relative; overflow: hidden; padding: 25px 28px; border-radius: 24px; background: linear-gradient(125deg,#171629 0%,#32214c 62%,#6b3f83 100%); color: white; box-shadow: 0 18px 46px rgba(38,24,68,.18); }
       .agenda-hero:after { content:''; position:absolute; width:350px; height:350px; right:-120px; top:-230px; border:48px solid rgba(53,242,242,.13); border-radius:50%; }
       .agenda-eyebrow { margin:0 0 7px; font-size:12px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:#35f2f2; }
-      .agenda-hero h2 { margin:0; font-size:32px; line-height:1.08; color:#fff; }
-      .agenda-hero p { max-width:650px; margin:10px 0 0; color:#dfd7eb; font-size:15px; }
-      .agenda-grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr); gap:20px; margin-top:22px; }
-      .agenda-card { background:rgba(255,255,255,.86); border:1px solid rgba(91,47,128,.13); border-radius:22px; padding:24px; box-shadow:0 11px 28px rgba(29,22,62,.06); }
+      .agenda-hero h2 { margin:0; font-size:31px; line-height:1.08; color:#fff; }
+      .agenda-hero p { max-width:650px; margin:8px 0 0; color:#dfd7eb; font-size:14px; }
+      .agenda-grid { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(288px,.45fr); gap:18px; margin-top:18px; align-items:start; }
+      .agenda-card { background:rgba(255,255,255,.88); border:1px solid rgba(91,47,128,.13); border-radius:20px; padding:21px; box-shadow:0 11px 28px rgba(29,22,62,.055); }
       .agenda-card h3 { margin:0; font-size:20px; }
       .agenda-card .agenda-note { margin:7px 0 20px; font-size:14px; color:#777387; }
-      .agenda-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:21px; }
-      .agenda-kpi { padding:15px; border-radius:16px; background:#f7f2fb; }
+      .agenda-kpis { display:grid; grid-template-columns:1.25fr .85fr .85fr; gap:10px; margin-top:17px; }
+      .agenda-kpi { min-height:92px; padding:15px; border-radius:16px; background:#f7f2fb; }
       .agenda-kpi span { display:block; font-size:12px; color:#746e82; margin-bottom:5px; }
       .agenda-kpi strong { font-size:22px; color:#171629; }
       .agenda-kpi.accent { background:linear-gradient(120deg,rgba(53,242,242,.22),rgba(214,148,242,.25)); }
       .agenda-kpi.accent strong { color:#15999d; }
-      .agenda-forecast-chart { margin:18px 0 9px; padding:15px 15px 11px; border:1px solid #eee8f1; border-radius:16px; background:linear-gradient(135deg,#fff 0%,#fbf8ff 100%); }
+      .agenda-forecast-chart { margin:16px 0 9px; padding:16px 16px 12px; border:1px solid rgba(117,77,157,.15); border-radius:16px; background:linear-gradient(135deg,#fbf8ff 0%,#fff 56%,#f3fcfc 100%); }
       .agenda-chart-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:11px; }
       .agenda-chart-head strong { font-size:13px; color:#2a243c; }
       .agenda-chart-head span { font-size:12px; font-weight:750; color:#8b65a4; }
@@ -110,15 +110,16 @@
       .agenda-bar-label { color:#776f83; font-size:11px; font-weight:750; text-transform:capitalize; }
       .agenda-goal-line { z-index:2; position:absolute; right:0; left:0; height:1px; border-top:1px dashed #b66bf2; pointer-events:none; }
       .agenda-goal-line span { position:absolute; right:0; top:-18px; padding-left:5px; background:#fbf9fd; color:#9661c7; font-size:10px; font-weight:800; }
-      .agenda-toolbar { display:flex; align-items:end; gap:12px; margin-bottom:17px; }
+      .agenda-toolbar { display:flex; align-items:end; gap:10px; margin-bottom:14px; }
       .agenda-field { display:flex; flex-direction:column; gap:6px; flex:1; font-size:12px; font-weight:700; color:#706a7d; }
       .agenda-field input,.agenda-field select { width:100%; height:42px; padding:0 12px; font:inherit; color:#171629; background:#fff; border:1px solid #e6dced; border-radius:11px; outline:none; }
       .agenda-field input:focus,.agenda-field select:focus { border-color:#b66bf2; box-shadow:0 0 0 3px rgba(182,107,242,.12); }
       .agenda-button { height:42px; padding:0 15px; border:0; border-radius:11px; background:#b66bf2; color:#fff; cursor:pointer; font-weight:800; font-size:13px; box-shadow:0 8px 18px rgba(182,107,242,.2); }
       .agenda-button:hover { transform:translateY(-1px); }
       .agenda-button.ghost { background:#f7f1fa; color:#7e3faa; box-shadow:none; }
-      .agenda-event-list { display:flex; flex-direction:column; gap:8px; }
-      .agenda-event { display:grid; grid-template-columns:76px 1fr auto auto; align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid #eee8f1; }
+      .agenda-event-list { display:flex; flex-direction:column; gap:6px; margin-top:14px; }
+      .agenda-event { display:grid; grid-template-columns:76px 1fr auto auto; align-items:center; gap:12px; padding:12px 11px; border:1px solid transparent; border-radius:12px; }
+      .agenda-event:hover { background:#faf7fd; border-color:#eee6f3; }
       .agenda-event:last-child { border-bottom:0; }
       .agenda-date { font-weight:800; font-size:13px; color:#8a6e9c; text-transform:capitalize; }
       .agenda-title { font-weight:750; color:#242035; }
@@ -129,7 +130,7 @@
       .agenda-rule { display:grid; grid-template-columns:1fr 130px auto; gap:8px; align-items:center; }
       .agenda-rule input { height:40px; padding:0 10px; border:1px solid #e9deee; border-radius:10px; color:#29243a; font-size:13px; }
       .agenda-rule .agenda-icon-button { background:#fbf4fa; border-radius:9px; color:#be4e87; }
-      .agenda-settings { display:flex; flex-wrap:wrap; gap:9px; margin-top:16px; padding-top:16px; border-top:1px solid #eee8f1; }
+      .agenda-settings { display:flex; flex-wrap:wrap; gap:9px; margin-top:14px; padding-top:14px; border-top:1px solid #eee8f1; }
       .agenda-year { margin-top:22px; }
       .agenda-year-head { display:flex; justify-content:space-between; align-items:end; gap:15px; margin-bottom:12px; }
       .agenda-year-list { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
@@ -138,10 +139,23 @@
       .agenda-month-item span { display:block; font-size:12px; color:#7c7487; text-transform:capitalize; }
       .agenda-month-item strong { display:block; margin-top:4px; color:#282037; font-size:15px; }
       .agenda-month-item em { display:block; margin-top:2px; font-size:11px; font-style:normal; color:#1aa5a7; }
-      .agenda-google { background:linear-gradient(135deg,#fff7f2,#fff); border-color:#ffd9c5; }
+      .agenda-google { background:linear-gradient(145deg,#fff8f5,#fff); border-color:#ffd9c5; }
       .agenda-google-mark { display:inline-flex; align-items:center; justify-content:center; width:42px; height:42px; border-radius:13px; background:#ff6731; color:#fff; font-size:21px; margin-bottom:12px; }
       .agenda-google strong { display:block; font-size:18px; }
       .agenda-google p { margin:8px 0 0; color:#776f70; line-height:1.45; font-size:13px; }
+      .agenda-google .agenda-settings { display:grid; grid-template-columns:1fr; }
+      .agenda-google .agenda-button { width:100%; text-align:left; }
+      .agenda-rules-card { padding:0; overflow:hidden; }
+      .agenda-rules-card summary { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 21px; cursor:pointer; list-style:none; color:#242035; }
+      .agenda-rules-card summary::-webkit-details-marker { display:none; }
+      .agenda-rules-card summary > span:first-child { display:flex; flex-direction:column; gap:3px; }
+      .agenda-rules-card summary strong { font-size:16px; }
+      .agenda-rules-card summary small { color:#81798d; font-size:12px; }
+      .agenda-rules-card summary::after { content:'+'; display:grid; place-items:center; width:27px; height:27px; border-radius:50%; background:#f5edf9; color:#9357bf; font-size:20px; line-height:1; }
+      .agenda-rules-card[open] summary { border-bottom:1px solid #eee8f1; }
+      .agenda-rules-card[open] summary::after { content:'−'; }
+      .agenda-rules-content { padding:18px 21px 21px; }
+      .agenda-rules-content .agenda-note { margin-top:0; }
       .agenda-modal { position:fixed; inset:0; z-index:99999; display:grid; place-items:center; padding:20px; background:rgba(18,15,34,.56); backdrop-filter:blur(7px); }
       .agenda-modal-box { width:min(520px,100%); padding:25px; border-radius:22px; background:#fff; box-shadow:0 28px 80px rgba(10,8,25,.35); }
       .agenda-modal-box h3 { margin:0 0 18px; font-size:23px; }
@@ -356,16 +370,11 @@
       return `<div class="agenda-event"><div class="agenda-date">${esc(date)}</div><div class="agenda-title">${esc(event.title)}</div><strong class="agenda-amount">${money.format(Number(event.amount) || 0)}</strong><button class="agenda-icon-button" data-agenda-edit="${event.id}" title="Modifier">✎</button></div>`;
     }).join('') : '<div class="agenda-empty">Aucune date prévue ce mois-ci.<br>Ajoute un DJ set, un mariage ou toute autre prestation.</div>';
     const rules = data.rules.map((rule) => `<div class="agenda-rule"><input data-rule-keyword="${rule.id}" value="${esc(rule.keyword)}" aria-label="Mot-clé"><input data-rule-amount="${rule.id}" type="number" min="0" step="1" value="${Number(rule.amount) || 0}" aria-label="Montant"><button class="agenda-icon-button" data-rule-delete="${rule.id}" title="Supprimer">×</button></div>`).join('');
-    const yearRows = months.filter((item) => item.key >= monthKey() && item.key < `${Number(month.slice(0, 4)) + 1}-01`).slice(0, 12).map((item) => {
-      const monthEvents = eventsForMonth(item.key);
-      return `<button class="agenda-month-item" data-agenda-month="${item.key}"><span>${esc(item.label)}</span><strong>${money.format(totalForMonth(item.key))}</strong><em>${monthEvents.length} date${monthEvents.length > 1 ? 's' : ''} prévue${monthEvents.length > 1 ? 's' : ''}</em></button>`;
-    }).join('');
-
     root.innerHTML = `
       <div class="agenda-hero">
         <p class="agenda-eyebrow">Planning créatif</p>
         <h2>Agenda & prévisions</h2>
-        <p>Anticipe tes prestations sans toucher à la compta : tes dates prévues restent séparées du CA encaissé, des charges et de l’URSSAF.</p>
+        <p>Une vue simple de tes dates à venir et du CA qu’elles représentent.</p>
       </div>
       <div class="agenda-grid">
         <section class="agenda-card">
@@ -375,9 +384,8 @@
           </div>
           <div class="agenda-kpis">
             <div class="agenda-kpi accent"><span>Prévision du mois</span><strong>${money.format(total)}</strong></div>
-            <div class="agenda-kpi"><span>Dates prévues</span><strong>${events.length}</strong></div>
-            <div class="agenda-kpi"><span>Moyenne des projections</span><strong>${money.format(average)}</strong></div>
-            <div class="agenda-kpi"><span>Objectif CA minimum</span><strong>${minimumGoal > 0 ? money.format(minimumGoal) : '—'}</strong></div>
+            <div class="agenda-kpi"><span>Objectif du mois</span><strong>${minimumGoal > 0 ? money.format(minimumGoal) : '—'}</strong></div>
+            <div class="agenda-kpi"><span>${events.length} date${events.length > 1 ? 's' : ''} · moyenne</span><strong>${money.format(average)}</strong></div>
           </div>
           ${forecastChart}
           ${minimumGoal > 0 ? `<p class="agenda-note" style="margin:13px 0 2px">${total >= minimumGoal ? 'Objectif minimum atteint pour ce mois.' : `Il reste ${money.format(gap)} pour atteindre ton minimum ce mois-ci.`}</p>` : ''}
@@ -390,21 +398,19 @@
             <p>${esc(googleStatusText())}</p>
             <div class="agenda-settings"><button class="agenda-button ghost" type="button" data-google-connect ${data.google?.status === 'syncing' ? 'disabled' : ''}>${data.google?.status === 'syncing' ? 'Synchronisation…' : data.google?.lastSyncedAt ? 'Synchroniser maintenant' : 'Connecter Google Agenda'}</button>${data.google?.lastSyncedAt ? '<button class="agenda-button ghost" type="button" data-google-reset>Nettoyer les anciennes dates</button>' : ''}</div>
           </section>
-          <section class="agenda-card" style="margin-top:20px">
-            <h3>Règles rapides</h3>
-            <p class="agenda-note">Un titre qui contient le mot-clé préremplit le montant, que tu peux toujours modifier.</p>
-            <div class="agenda-rule-list">${rules}</div>
-            <div class="agenda-settings"><button class="agenda-button ghost" type="button" data-rule-add>+ Ajouter une règle</button></div>
-            <div class="agenda-settings">
-              <label class="agenda-field">Objectif CA minimum / mois (€)<input id="agenda-goal" type="number" min="0" step="100" value="${Number(data.forecastGoal) || ''}" placeholder="${financeMonthlyGoal() || 'Optionnel'}"></label>
+          <details class="agenda-card agenda-rules-card" style="margin-top:14px">
+            <summary><span><strong>Règles & objectif</strong><small>${data.rules.length} règle${data.rules.length > 1 ? 's' : ''} · objectif ${minimumGoal > 0 ? money.format(minimumGoal) : 'non défini'}</small></span></summary>
+            <div class="agenda-rules-content">
+              <p class="agenda-note">Un mot-clé remplit automatiquement le montant de tes dates Agenda.</p>
+              <div class="agenda-rule-list">${rules}</div>
+              <div class="agenda-settings"><button class="agenda-button ghost" type="button" data-rule-add>+ Ajouter une règle</button></div>
+              <div class="agenda-settings">
+                <label class="agenda-field">Objectif CA minimum / mois (€)<input id="agenda-goal" type="number" min="0" step="100" value="${Number(data.forecastGoal) || ''}" placeholder="${financeMonthlyGoal() || 'Optionnel'}"></label>
+              </div>
             </div>
-          </section>
+          </details>
         </aside>
       </div>
-      <section class="agenda-card agenda-year">
-        <div class="agenda-year-head"><div><h3>Prévisions à venir</h3><p class="agenda-note">Vue par mois — clique sur un mois pour voir ou modifier ses dates.</p></div></div>
-        <div class="agenda-year-list">${yearRows || '<div class="agenda-empty">Aucun mois à afficher.</div>'}</div>
-      </section>
     `;
   }
 
