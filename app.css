@@ -683,3 +683,11 @@ body.apercu .topbar.scrolled{padding-top:10px}
 .kind-toggle{border:0;cursor:pointer;font:inherit;font-size:11px;font-weight:800}
 .kind-toggle:hover{filter:brightness(.95);box-shadow:0 0 0 2px rgba(155,69,224,.18)}
 .kind-toggle.moved{box-shadow:0 0 0 1.5px currentColor}
+/* Mes activités : total et moyenne */
+.act-sum{display:grid;grid-template-columns:minmax(0,1fr) 120px 140px;gap:12px;align-items:baseline;padding:11px 0;border-top:1px solid var(--line-2)}
+.act-sum>*:not(:first-child){text-align:right;white-space:nowrap}
+.act-sum.head{border-top:0;padding-top:2px;color:var(--muted);font-size:12px;font-weight:700}
+.act-sum span:first-child{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.act-sum.total{border-top:1.5px solid var(--line)}.act-sum.total b{font-size:17px}
+.act-sum.head span:first-child{font-weight:700}
+@media(max-width:560px){.act-sum{grid-template-columns:minmax(0,1fr) 88px 96px;gap:8px}}

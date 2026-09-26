@@ -214,8 +214,6 @@ function barChart(items, goal, opts) {
 function activityCard(year, detailed) {
   if (!state.activities.length) return '';
   var months = C.monthsOfYear(state, year);
-  /* Moyenne sur les mois détaillés par activité : un mois saisi en bloc fausserait le calcul. */
-  var split = months.filter(function (m) { return m.split && Object.keys(m.split).some(function (k) { return k.charAt(0) !== '~'; }); });
   var rows = C.activityTotals(state, months);
   var now = C.monthKey(), from = now > year + '-12' ? null : (now < year + '-01' ? year + '-01' : now);
   var planned = from && window.FOSAgenda && FOSAgenda.plannedByActivity ? FOSAgenda.plannedByActivity(from, year + '-12') : {};
@@ -223,16 +221,15 @@ function activityCard(year, detailed) {
   if (!rows.length) return '';
   var max = Math.max.apply(null, rows.map(function (r) { return r.total + (planned[r.activity.id] || 0); })) || 1;
   var all = rows.reduce(function (s2, r) { return s2 + r.total; }, 0) || 1;
-  if (detailed) return '<div class="card acts-card"><div class="card-head"><h3>Moyenne par activité · ' + year + '</h3><button class="link" data-action="activities" data-demo-lock>Mes activités</button></div>' +
-    '<p class="note acts-note">Sur ' + split.length + ' mois détaillé' + (split.length > 1 ? 's' : '') + (split.length < months.length ? ' (' + (months.length - split.length) + ' saisi' + (months.length - split.length > 1 ? 's' : '') + ' sans détail)' : '') + '</p>' +
-    rows.map(function (r) {
-      var a = r.activity, vals = split.map(function (m) { return C.num(m.split[a.id]); });
-      var avg = split.length ? vals.reduce(function (x, y) { return x + y; }, 0) / split.length : 0;
-      var best = Math.max.apply(null, vals.concat([0])), active = vals.filter(Boolean).length;
-      return '<div class="act-avg"><span class="act-name"><b>' + esc(a.label) + '</b>' + kindChip(a.kind) + '</span>' +
-        '<span class="act-avg-fig"><b>' + money0(avg) + '</b><small>/ mois</small></span>' +
-        '<span class="act-avg-meta">' + money0(r.total) + ' sur l’année · meilleur mois ' + money0(best) + ' · actif ' + active + '/' + split.length + ' mois</span></div>';
-    }).join('') + '</div>';
+  /* Page Mois : l'addition de ce qui est saisi dans les fiches, et la moyenne par mois saisi. */
+  if (detailed) {
+    var count = months.length || 1, sumAll = rows.reduce(function (x, r) { return x + r.total; }, 0);
+    var line = function (label, total, strong) { return '<div class="act-sum' + (strong ? ' total' : '') + '"><span>' + label + '</span><b>' + money0(total) + '</b><b>' + money0(total / count) + '</b></div>'; };
+    return '<div class="card acts-card"><div class="card-head"><h3>Mes activités · ' + year + '</h3><button class="link" data-action="activities" data-demo-lock>Modifier</button></div>' +
+      '<div class="act-sum head"><span>Activité</span><span>Total</span><span>Moyenne / mois</span></div>' +
+      rows.map(function (r) { return line(esc(r.activity.label), r.total); }).join('') +
+      line('Total', sumAll, true) + '<p class="note acts-note">Moyenne sur ' + months.length + ' mois saisi' + (months.length > 1 ? 's' : '') + '.</p></div>';
+  }
   return '<div class="card acts-card"><div class="card-head"><h3>Par activité · ' + year + '</h3><button class="link" data-action="activities" data-demo-lock>Mes activités</button></div>' +
     rows.map(function (r) {
       var a = r.activity, p = planned[a.id] || 0;
@@ -796,35 +793,3 @@ window.addEventListener('storage', function (e) {
 mountShell();
 render();
 
-/* Correctif ponctuel du compte d'Axel : ses déclarations 2026 mettaient l'agence en BIC.
-   Le CA déjà déclaré est réparti par activité sans changer aucun total. À retirer une fois appliqué. */
-function splitAxel2026() {
-  var acc = window.FreelanceOSAccount;
-  if (state.demoMode || state.axelSplit2026 || !acc || acc.email() !== 'axelbertran@gmail.com') return;
-  var meta = {}; try { meta = JSON.parse(localStorage.getItem('freelance-os-sync-v3') || '{}'); } catch (_) {}
-  if (meta.dirty || meta.syncing) return;
-  var find = function (re, id, label) {
-    var a = state.activities.find(function (x) { return re.test(x.label.toLowerCase()); });
-    if (!a) { a = { id: id, label: label, kind: 'bnc' }; state.activities.push(a); }
-    return a;
-  };
-  var dj = find(/\bdj\b/, 'act-dj', 'DJ'), ag = find(/agence|communication|com\b/, 'act-agence', 'Agence de communication'), fo = find(/formation/, 'act-formation', 'Formation');
-  var list = state.activities.map(function (a) { return a === ag ? Object.assign({}, a, { kind: 'bnc' }) : a; });
-  applyActivities(list);
-  ag = state.activities.find(function (x) { return x.id === ag.id; });
-  state.months.forEach(function (m) {
-    if (m.month.slice(0, 4) !== '2026' || (m.split && Object.keys(m.split).some(function (k) { return k.charAt(0) !== '~'; }))) return;
-    var bnc = m.bnc, bic = m.bic, formation = m.month === '2026-07' ? Math.min(1400, bnc) : 0;
-    m.split = {}; m.kinds = {};
-    if (formation) m.split[fo.id] = formation;
-    if (bnc - formation > 0) m.split[dj.id] = bnc - formation;
-    if (bic > 0) { m.split[ag.id] = bic; if (ag.kind !== 'bic') m.kinds[ag.id] = 'bic'; }
-    if (m.cdd) m.split['~cdd'] = m.cdd;
-    if (m.sacem) m.split['~sacem'] = m.sacem;
-    var t = C.splitTotals(state, m.split, m.kinds);
-    if (t.bnc !== bnc || t.bic !== bic) { m.split = {}; m.kinds = {}; }
-  });
-  state.axelSplit2026 = true;
-  save(); render(); toast('Mois 2026 répartis par activité');
-}
-setTimeout(splitAxel2026, 4000);
