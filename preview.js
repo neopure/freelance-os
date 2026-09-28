@@ -90,7 +90,7 @@
         '<p class="m-line">En ' + esc(monthOnly(m.month)) + ', il te reste</p>' +
         '<span class="m-big">' + n(t.pocket) + '</span>' +
         '<p class="m-soft">dans ta poche, sur ' + money(t.revenue) + ' encaissés.</p>' +
-        '<div class="m-stats"><span><i>Charges</i><b>' + money0(t.expenses + t.personal) + '</b></span><span><i>URSSAF</i><b>' + money0(t.urssaf) + '</b></span><span><i>Part gardée</i><b>' + pct(t.revenue ? t.pocket / t.revenue * 100 : 0, 0) + '</b></span></div>' +
+        '<div class="m-stats"><span><i>Charges</i><b>' + money0(t.expenses + t.personal) + '</b></span><span><i>URSSAF</i><b>' + money0(t.urssaf) + '</b></span><span><i>Total dépensé</i><b>' + money0(t.revenue - t.pocket) + '</b></span></div>' +
       '</section>' +
       '<div class="modules stagger">' + urssaf + tva + goalMod + '</div>' +
       '<div class="home-grid stagger">' + agenda + yearMod + '</div>' +
