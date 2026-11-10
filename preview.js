@@ -44,6 +44,12 @@
     return '<svg class="ring" viewBox="0 0 110 110"><circle cx="55" cy="55" r="' + r + '" class="ring-bg"/><circle cx="55" cy="55" r="' + r + '" class="ring-fg" stroke-dasharray="' + c + '" stroke-dashoffset="' + (c * (1 - p / 100)) + '" style="--c:' + c + '"/></svg>';
   }
 
+  /* Prélèvement déjà passé ce mois-ci, pour retrouver le montant débité. */
+  function lastLine(due) {
+    var l = due.last;
+    return l && l.item ? '<span class="module-foot">Prélevé début ' + esc(monthOnly(l.paymentMonth)) + ' : <strong>' + money0(l.total) + '</strong> · CA de ' + esc(monthOnly(l.period)) + '</span>' : '';
+  }
+
   function home() {
     var m = currentMonth();
     if (!m) return RENDERERS_ORIGINAL.dashboard();
@@ -57,10 +63,16 @@
     var urssaf = '<button type="button" class="module' + (urgent ? ' urgent' : '') + '" data-view="fiscal">' +
       '<span class="module-kicker">' + icon('fiscal') + 'Prochain prélèvement URSSAF</span>' +
       (due.item
-        ? '<b class="module-big">' + n(due.total) + '</b><span class="module-line">le 1er ' + esc(monthOnly(due.paymentMonth)) + ' · <strong>' + (due.days <= 1 ? 'demain' : 'dans ' + due.days + ' jours') + '</strong></span><span class="module-foot">Calculé sur ton CA de ' + esc(monthOnly(due.period)) + '</span>'
+        ? '<b class="module-big">' + n(due.total) + '</b><span class="module-line">le 1er ' + esc(monthOnly(due.paymentMonth)) + ' · <strong>' + (due.days <= 1 ? 'demain' : 'dans ' + due.days + ' jours') + '</strong></span><span class="module-foot">Calculé sur ton CA de ' + esc(monthOnly(due.period)) + '</span>' + lastLine(due)
         : '<b class="module-big">—</b><span class="module-line">Saisis ' + esc(monthOnly(due.period)) + ' pour le calculer</span>') + '</button>';
 
-    var tva = state.vatEnabled ? '' : '<button type="button" class="module ' + level + '" data-view="fiscal">' +
+    var vs = state.vatEnabled ? C.vatSchedule(state) : null, vnx = vs && vs.next;
+    var tva = state.vatEnabled ? '<button type="button" class="module" data-view="fiscal">' +
+      '<span class="module-kicker">' + icon('fiscal') + 'Prochaine échéance TVA</span>' +
+      (vnx
+        ? '<b class="module-big">' + (vnx.amount === null ? '—' : n(vnx.amount)) + '</b><span class="module-line">' + esc(vatWhen(vnx)) + ' · <strong>dans ' + vnx.days + ' jours</strong></span><span class="module-foot">' + esc(vatLabel(vnx)) + (vnx.amount === null ? ' · mois à saisir' : '') + '</span>'
+        : '<b class="module-big">' + n(0) + '</b><span class="module-line">Aucune TVA à reverser</span>') +
+      '<span class="module-foot">À reverser en ' + year + ' : <strong>' + money0(vs.yearVat) + '</strong></span></button>' : '<button type="button" class="module ' + level + '" data-view="fiscal">' +
       '<span class="module-kicker">' + icon('fiscal') + 'Franchise de TVA</span>' +
       '<b class="module-big">' + n(vat.percent, 'pct') + '</b>' +
       '<span class="track ' + level + '" style="margin:8px 0"><i data-w="' + Math.min(100, vat.percent) + '"></i></span>' +
@@ -90,7 +102,7 @@
         '<p class="m-line">En ' + esc(monthOnly(m.month)) + ', il te reste</p>' +
         '<span class="m-big">' + n(t.pocket) + '</span>' +
         '<p class="m-soft">dans ta poche, sur ' + money(t.revenue) + ' encaissés.</p>' +
-        '<div class="m-stats"><span><i>Charges</i><b>' + money0(t.expenses + t.personal) + '</b></span><span><i>URSSAF</i><b>' + money0(t.urssaf) + '</b></span><span><i>Total dépensé</i><b>' + money0(t.revenue - t.pocket) + '</b></span></div>' +
+        '<div class="m-stats"><span><i>Charges</i><b>' + money0(t.proCost + t.personal) + '</b></span><span><i>URSSAF</i><b>' + money0(t.urssaf) + '</b></span><span><i>Total dépensé</i><b>' + money0(t.revenue - t.pocket) + '</b></span></div>' +
       '</section>' +
       '<div class="modules stagger">' + urssaf + tva + goalMod + '</div>' +
       '<div class="home-grid stagger">' + agenda + yearMod + '</div>' +
@@ -138,7 +150,7 @@
   function pageFiscal() {
     var due = C.urssafUpcoming(state), d = due.details, urgent = due.total > 0 && due.days <= 7;
     return stage({ tone: urgent ? 'urgent' : '', kicker: 'Prélèvement URSSAF · 1er ' + esc(monthOnly(due.paymentMonth)), big: n(due.total),
-      soft: d ? '<span class="countdown-inline">' + (due.days <= 1 ? 'demain' : 'dans ' + due.days + ' jours') + '</span> · calculé sur ton CA de ' + esc(monthOnly(due.period)) : 'Saisis ' + esc(monthOnly(due.period)) + ' pour le calculer',
+      soft: d ? '<span class="countdown-inline">' + (due.days <= 1 ? 'demain' : 'dans ' + due.days + ' jours') + '</span> · calculé sur ton CA de ' + esc(monthOnly(due.period)) + (due.last && due.last.item ? '<br>Prélevé début ' + esc(monthOnly(due.last.paymentMonth)) + ' : ' + money(due.last.total) + ' · CA de ' + esc(monthOnly(due.last.period)) : '') : 'Saisis ' + esc(monthOnly(due.period)) + ' pour le calculer',
       stats: d ? [['BNC', money(d.bncContribution)], ['BIC', money(d.bicContribution)], ['CFP + CCI', money(d.cfpContribution + d.cciContribution)]].concat(state.vlEnabled ? [['Impôt', money(d.vlContribution)]] : []) : [] }) +
       strip(RENDERERS_ORIGINAL.fiscal(), ['.hero']);
   }

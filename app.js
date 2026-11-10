@@ -182,7 +182,7 @@ function renderWatch() {
       (goal ? '<div class="bar"><i style="width:' + p + '%"></i></div><em>' + (t.revenue >= goal ? 'Moyenne visée atteinte' : money(goal - t.revenue) + ' sous la moyenne visée') + '</em>' : '') + '</div>';
   }
   var urgent = due.total > 0 && due.days <= 7;
-  html += '<div class="watch' + (urgent ? ' alert' : '') + '"><small>URSSAF · 1er ' + esc(monthOnly(due.paymentMonth)) + '</small><b>' + money(due.total) + '</b><em>' + urssafCountdown(due) + '</em></div>';
+  html += '<div class="watch' + (urgent ? ' alert' : '') + '"><small>URSSAF · 1er ' + esc(monthOnly(due.paymentMonth)) + '</small><b>' + money(due.total) + '</b><em>' + urssafCountdown(due) + (due.last && due.last.item ? '<br>Prélevé début ' + esc(monthOnly(due.last.paymentMonth)) + ' : ' + money(due.last.total) : '') + '</em></div>';
   box.innerHTML = html;
   if (state.demoMode) maskAmounts(box);
 }
@@ -284,7 +284,7 @@ function viewMonths() {
   var y = C.yearSummary(state, year), goal = state.monthlyGoal;
   var rows = C.monthsOfYear(state, year).map(function (m) {
     var t = C.calc(state, m);
-    var parts = [['poche', Math.max(0, t.pocket), 'Dans ta poche'], ['urssaf', t.urssaf, 'URSSAF'], ['pro', t.expenses + Math.max(0, t.vat), 'Charges pro'], ['perso', t.personal, 'Charges perso']];
+    var parts = [['poche', Math.max(0, t.pocket), 'Dans ta poche'], ['urssaf', t.urssaf, 'URSSAF'], ['pro', t.proCost, 'Charges pro'], ['perso', t.personal, 'Charges perso']];
     var total = Math.max(t.revenue, parts.reduce(function (s, p) { return s + p[1]; }, 0), 1);
     var bar = parts.map(function (p) { return p[1] > 0 ? '<i class="seg-' + p[0] + '" data-w="' + (p[1] / total * 100) + '" title="' + p[2] + ' · ' + money(p[1]) + '"></i>' : ''; }).join('');
     var status = goal ? (t.revenue >= goal ? '<span class="pill goal-ok">◎ Moyenne visée</span>' : '<span class="pill goal-low">◎ −' + money0(goal - t.revenue) + '</span>') : '';
@@ -331,6 +331,8 @@ function viewFixed() {
 }
 
 /* ---------- TVA & URSSAF ---------- */
+function vatWhen(x) { return x.when + (x.dueMonth ? ' ' + monthOnly(x.dueMonth) : x.date ? ' ' + x.date.getFullYear() : ''); }
+function vatLabel(x) { return x.period ? 'TVA de ' + monthOnly(x.period) : x.label; }
 function viewFiscal() {
   var due = C.urssafUpcoming(state), year = currentYear(), m = currentMonth();
   var urgent = due.total > 0 && due.days <= 7;
@@ -341,7 +343,13 @@ function viewFiscal() {
        : '<div class="detail-row"><span>Synthèse de ' + esc(monthName(due.period)) + ' à saisir</span></div>') + '</div>';
   var vatCard = '<div class="card"><div class="card-head"><h3>TVA</h3><button class="switch' + (state.vatEnabled ? ' on' : '') + '" data-action="toggle-vat" aria-label="Activer la TVA" data-demo-lock></button></div>' +
     (state.vatEnabled
-      ? '<div class="grid-2"><div><span class="label">À provisionner · ' + esc(m ? monthName(m.month) : '') + '</span><span class="value">' + n(m ? m.vatCollected : 0) + '</span></div><div><span class="label">Cumul ' + year + '</span><span class="value">' + n(C.yearSummary(state, year).vat) + '</span></div></div>'
+      ? (function () {
+          var s = C.vatSchedule(state), nx = s.next, t = m ? C.calc(state, m) : null;
+          return '<div class="grid-2"><div><span class="label">Prochaine échéance' + (nx ? ' · ' + esc(vatWhen(nx)) : '') + '</span><span class="value">' + (nx ? (nx.amount === null ? '—' : n(nx.amount)) : '—') + '</span>' +
+            '<span class="note">' + (nx ? esc(vatLabel(nx)) + (nx.amount === null ? ' · mois à saisir' : '') : 'Aucune TVA à reverser') + '</span></div>' +
+            '<div><span class="label">À reverser · ' + year + '</span><span class="value">' + n(s.yearVat) + '</span><span class="note">' + (state.vatRegime === 'monthly' ? 'Déclaration mensuelle' : 'Réel simplifié') + ' · ' + rate(state.vatRate) + '</span></div></div>' +
+            (t ? '<div class="detail-row"><span>' + esc(monthName(m.month)) + '</span><span>Collectée <b>' + money(t.vatCollected) + '</b></span><span>Déductible <b>' + money(t.vatDeduct) + '</b></span><span>Net <b>' + money(t.vat) + '</b></span></div>' : '');
+        })()
       : '<span class="label">Franchise en base de TVA</span><span class="value" style="color:var(--faint)">Inactive</span>') + '</div>';
   var rates = '<div class="card"><div class="card-head"><h3>Taux</h3><button class="btn quiet" data-action="activities" data-demo-lock>Activités</button><button class="btn quiet" data-action="fiscal-settings" data-demo-lock>Réglages</button></div>' +
     '<div class="facts"><div><span class="label">BNC</span><b>' + rate(state.bncTaxRate) + '</b></div><div><span class="label">BIC</span><b>' + rate(state.bicTaxRate) + '</b></div><div><span class="label">CFP + CCI</span><b>' + rate(state.cfpRate + state.cciRate) + '</b></div>' +
@@ -445,9 +453,9 @@ function openMonth(id) {
   var nextKey = latest ? C.monthKey(new Date(+latest.month.slice(0, 4), +latest.month.slice(5, 7), 1)) : C.monthKey();
   var m = existing || C.emptyMonth(nextKey);
   var body = '<div class="fields">' + FOSUI.monthField('month', 'Mois', m.month, true) + '</div>' +
-    '<div class="group group-link">Recettes<button type="button" class="link" data-acts>' + (state.activities.length ? 'Mes activités' : 'Détailler par activité') + '</button></div>' + revenueFields(m) +
-    '<div class="group">Dépenses du mois</div><div class="fields">' + field('variable', 'Dépenses pro', m.variable) + field('invest', 'Achat / investissement pro', m.invest) + field('personal', 'Dépenses perso', m.personal, { full: true }) + '</div>' +
-    (state.vatEnabled ? '<div class="group">TVA</div><div class="fields">' + field('vatCollected', 'TVA à provisionner', m.vatCollected, { full: true }) + '</div>' : '') +
+    '<div class="group group-link">' + (state.vatEnabled ? 'Recettes HT' : 'Recettes') + '<button type="button" class="link" data-acts>' + (state.activities.length ? 'Mes activités' : 'Détailler par activité') + '</button></div>' + revenueFields(m) +
+    '<div class="group">Dépenses du mois</div><div class="fields">' + field('variable', state.vatEnabled ? 'Dépenses pro TTC' : 'Dépenses pro', m.variable) + field('invest', 'Achat / investissement pro', m.invest) + field('personal', 'Dépenses perso', m.personal, { full: true }) + '</div>' +
+    (state.vatEnabled ? '<div class="group">TVA</div><div class="fields">' + field('vatCollected', 'TVA collectée (' + rate(state.vatRate) + ' du HT)', m.vatCollected) + field('vatDeduct', 'TVA déductible (achats pro)', m.vatDeduct) + '</div>' : '') +
     '<div class="group">Comparaison</div><div class="fields">' + field('lastYear', 'Recettes du même mois N-1', m.lastYear, { full: true }) + '</div>';
   var foot = '<div class="preview">Dans ta poche<b data-preview>—</b></div>' + (existing ? '<button type="button" class="btn danger" data-delete>Supprimer</button>' : '') + '<button class="btn" type="submit">Enregistrer</button>';
   openSheet(existing ? monthName(m.month) : 'Nouveau mois', body, foot, function (form) {
@@ -466,8 +474,10 @@ function openMonth(id) {
         ['bnc', 'bic', 'cdd', 'sacem'].forEach(function (k) { d[k] = val(form, k); });
         d.split = {}; d.kinds = {};
       }
-      d.vatCollected = state.vatEnabled ? val(form, 'vatCollected') : 0;
-      d.vatDeduct = 0; d.other = 0; d.pocket = 0;
+      /* TVA désactivée : on garde ce qui a été saisi plutôt que de l'effacer. */
+      d.vatCollected = state.vatEnabled ? val(form, 'vatCollected') : m.vatCollected;
+      d.vatDeduct = state.vatEnabled ? val(form, 'vatDeduct') : m.vatDeduct;
+      d.other = 0; d.pocket = 0;
       d.month = d.id = form.elements.month.value;
       return d;
     };
@@ -491,9 +501,17 @@ function openMonth(id) {
       var input = form.elements['kind-' + t.dataset.kindFor], a = state.activities.find(function (x) { return x.id === t.dataset.kindFor; });
       input.value = input.value === 'bnc' ? 'bic' : 'bnc';
       t.textContent = C.KINDS[input.value]; t.className = 'kind k-' + input.value + ' kind-toggle' + (input.value !== a.kind ? ' moved' : '');
-      rebalance(); preview();
+      rebalance(); autoVat(); preview();
     });
-    form.addEventListener('input', function (e) { rebalance(e); preview(); }); preview();
+    /* TVA collectée calculée sur le CA HT tant qu'elle n'a pas été modifiée à la main. */
+    var vatTouched = !!(existing && m.vatCollected);
+    var autoVat = function (e) {
+      var el = form.elements.vatCollected; if (!el) return;
+      if (e && e.target === el) { vatTouched = el.value !== ''; return; }
+      if (vatTouched) return;
+      var d = read(); el.value = Math.round((d.bnc + d.bic) * state.vatRate) / 100 || '';
+    };
+    form.addEventListener('input', function (e) { rebalance(e); autoVat(e); preview(); }); autoVat(); preview();
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var d = read();
@@ -676,6 +694,8 @@ function openFiscalSettings() {
     FOSUI.segField('vl', 'Versement libératoire de l’impôt', [['1', 'Oui'], ['0', 'Non']], state.vlEnabled ? '1' : '0', true) +
     field('vlBnc', 'Impôt BNC (%)', state.vlBncRate, { keepZero: true }) + field('vlBic', 'Impôt BIC (%)', state.vlBicRate, { keepZero: true }) +
     FOSUI.segField('lag', 'Prélèvement URSSAF', [[1, '1 mois après'], [2, '2 mois après'], [3, '3 mois après']], state.urssafLagMonths, true) + '</div>' +
+    '<div class="group">TVA</div><div class="fields">' + FOSUI.segField('vatRegime', 'Régime de TVA', [['simplified', 'Réel simplifié'], ['monthly', 'Mensuel']], state.vatRegime, true) +
+    field('vatRate', 'Taux de TVA (%)', state.vatRate, { full: true, keepZero: true }) + '</div>' +
     '<div class="group">Seuils</div><div class="fields">' + FOSUI.segField('activity', 'Activité TVA', [['services', 'Services'], ['sales', 'Vente'], ['custom', 'Autre']], state.vatActivity, true) +
     field('vatThreshold', 'Franchise TVA (€)', state.vatThreshold) + field('microThreshold', 'Plafond micro (€)', state.microThreshold, { full: true }) + '</div>';
   openSheet('Réglages fiscaux', body, '<span class="preview"></span><button class="btn" type="submit">Enregistrer</button>', function (form) {
@@ -689,6 +709,8 @@ function openFiscalSettings() {
       state.vlEnabled = form.elements.vl.value === '1'; state.vlBncRate = val(form, 'vlBnc'); state.vlBicRate = val(form, 'vlBic');
       state.urssafLagMonths = Number(form.elements.lag.value) || 2; state.vatActivity = form.elements.activity.value;
       if (val(form, 'vatThreshold') > 0) state.vatThreshold = val(form, 'vatThreshold');
+      state.vatRegime = form.elements.vatRegime.value === 'monthly' ? 'monthly' : 'simplified';
+      if (val(form, 'vatRate') > 0) state.vatRate = val(form, 'vatRate');
       if (val(form, 'microThreshold') > 0) state.microThreshold = val(form, 'microThreshold');
       save(); closeSheet(); render(); toast('Réglages enregistrés');
     });

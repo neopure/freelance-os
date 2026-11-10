@@ -36,6 +36,8 @@
     s.vatThreshold = finite(s.vatThreshold, 37500);
     s.vatActivity = s.vatActivity || 'services';
     s.vatEnabled = typeof s.vatEnabled === 'boolean' ? s.vatEnabled : false;
+    s.vatRate = finite(s.vatRate, 20);
+    s.vatRegime = s.vatRegime === 'monthly' ? 'monthly' : 'simplified';
     s.microThreshold = finite(s.microThreshold, 83600);
     s.bncTaxRate = finite(s.bncTaxRate, 0);
     s.bicTaxRate = finite(s.bicTaxRate, 0);
@@ -113,10 +115,13 @@
     var revenue = m.bnc + m.bic + m.other + m.cdd + m.sacem;
     var expenses = fixedTotal(state, 'pro') + m.variable + m.invest;
     var personal = fixedTotal(state, 'perso') + m.personal;
+    /* Recettes saisies HT : la TVA collectée est encaissée en plus puis reversée, elle ne touche pas « dans ta poche ».
+       Dépenses saisies TTC : la TVA déductible récupérée allège leur coût réel. */
     var vat = m.vatCollected - m.vatDeduct;
-    var net = revenue - expenses - vat - urssaf;
+    var proCost = expenses - m.vatDeduct;
+    var net = revenue - proCost - urssaf;
     return {
-      revenue: revenue, micro: micro, expenses: expenses, personal: personal, vat: vat,
+      revenue: revenue, micro: micro, expenses: expenses, proCost: proCost, personal: personal, vat: vat, vatCollected: m.vatCollected, vatDeduct: m.vatDeduct,
       bncContribution: bncContribution, bicContribution: bicContribution, cfpContribution: cfpContribution, cciContribution: cciContribution, vlContribution: vlContribution,
       urssaf: urssaf, net: net, pocket: net - personal
     };
@@ -189,7 +194,44 @@
     var details = item ? calc(state, item) : null;
     var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     var days = Math.round((paymentDate - today) / 86400000);
-    return { paymentDate: paymentDate, paymentMonth: monthKey(paymentDate), period: period, item: item, details: details, total: details ? details.urssaf : 0, days: days, msLeft: Math.max(0, paymentDate - now) };
+    /* Prélèvement déjà passé ce mois-ci (début du mois courant, sur le CA d'il y a « décalage » mois). */
+    var lastDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    var lastPeriod = monthKey(new Date(lastDate.getFullYear(), lastDate.getMonth() - state.urssafLagMonths, 1));
+    var lastItem = state.months.find(function (m) { return m.month === lastPeriod; }) || null;
+    var last = { paymentMonth: monthKey(lastDate), period: lastPeriod, item: lastItem, total: lastItem ? calc(state, lastItem).urssaf : 0 };
+    return { paymentDate: paymentDate, paymentMonth: monthKey(paymentDate), period: period, item: item, details: details, total: details ? details.urssaf : 0, days: days, msLeft: Math.max(0, paymentDate - now), last: last };
+  }
+
+  /* Échéances de TVA.
+     Réel simplifié : acomptes mi-juillet (55 %) et mi-décembre (40 %) de la TVA de l'an passé, s'il y en a eu au moins 1 000 € ;
+     solde avec la déclaration annuelle CA12 début mai de l'année suivante.
+     Mensuel : la TVA d'un mois est déclarée et payée vers le 19-24 du mois suivant. */
+  function vatSchedule(state, now) {
+    now = now || new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var vatOf = function (y) { return yearSummary(state, y).vat; };
+    var items = [];
+    if (state.vatRegime === 'monthly') {
+      for (var i = -1; i <= 0; i++) {
+        var p = new Date(now.getFullYear(), now.getMonth() + i, 1), key = monthKey(p);
+        var item = state.months.find(function (m) { return m.month === key; });
+        items.push({ date: new Date(p.getFullYear(), p.getMonth() + 1, 24), when: 'vers le 24', dueMonth: monthKey(new Date(p.getFullYear(), p.getMonth() + 1, 1)), period: key, amount: item ? calc(state, item).vat : null });
+      }
+    } else {
+      var acomptes = function (y) { var v = vatOf(y - 1); return v >= 1000 ? v : 0; };
+      [now.getFullYear() - 1, now.getFullYear()].forEach(function (y) {
+        var base = acomptes(y);
+        if (base) {
+          items.push({ date: new Date(y, 6, 15), when: 'mi-juillet', label: 'Acompte de juillet', amount: Math.round(base * 0.55) });
+          items.push({ date: new Date(y, 11, 15), when: 'mi-décembre', label: 'Acompte de décembre', amount: Math.round(base * 0.40) });
+        }
+        items.push({ date: new Date(y + 1, 4, 5), when: 'début mai', label: 'Solde ' + y + ' (CA12)', amount: Math.max(0, vatOf(y) - Math.round(base * 0.55) - Math.round(base * 0.40)), year: y });
+      });
+    }
+    items.sort(function (a, b) { return a.date - b.date; });
+    var next = items.find(function (x) { return x.date >= today && (x.amount === null || x.amount > 0); }) || null;
+    if (next) next.days = Math.round((next.date - today) / 86400000);
+    return { regime: state.vatRegime, next: next, yearVat: vatOf(now.getFullYear()) };
   }
 
   function forecast(state, year) {
@@ -198,7 +240,10 @@
     var projection = y.revenue + y.average * remainingMonths;
     var avg = function (v) { return y.count ? v / y.count : 0; };
     var projectedExpenses = avg(y.expenses) * 12;
-    var projectedVat = avg(y.vat) * 12;
+    /* TVA : moyenne des seuls mois soumis, projetée sur les mois restants. */
+    var vatMonths = y.months.filter(function (m) { return m.vatCollected || m.vatDeduct; }).length;
+    var projectedVat = y.vat + (vatMonths ? y.vat / vatMonths : 0) * remainingMonths;
+    var deduct = sum(y.months, function (m) { return m.vatDeduct; });
     var projectedUrssaf = avg(y.urssaf) * 12;
     var growthBase = state.n1AnnualRevenue || 0;
     return {
@@ -206,7 +251,7 @@
       goalPercent: state.goal ? projection / state.goal * 100 : 0,
       goalProgress: state.goal ? y.revenue / state.goal * 100 : 0,
       projectedExpenses: projectedExpenses, projectedVat: projectedVat, projectedUrssaf: projectedUrssaf,
-      projectedNet: projection - projectedExpenses - projectedVat - projectedUrssaf,
+      projectedNet: projection - projectedExpenses + avg(deduct) * 12 - projectedUrssaf,
       growthBase: growthBase,
       /* Croissance que représente l'objectif annuel par rapport à l'année précédente. */
       goalGrowth: growthBase && state.goal ? (state.goal / growthBase - 1) * 100 : null,
@@ -303,7 +348,7 @@
     KINDS: KINDS, splitTotals: splitTotals, activityTotals: activityTotals,
     normalize: normalize, sortMonths: sortMonths, load: load, persist: persist,
     monthlyAmount: monthlyAmount, fixedTotal: fixedTotal, calc: calc, monthsOfYear: monthsOfYear, years: years,
-    yearSummary: yearSummary, threshold: threshold, urssafUpcoming: urssafUpcoming, forecast: forecast,
+    yearSummary: yearSummary, threshold: threshold, urssafUpcoming: urssafUpcoming, vatSchedule: vatSchedule, forecast: forecast,
     bricksMetrics: bricksMetrics, bricksProjection: bricksProjection, parseBricksRows: parseBricksRows
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
